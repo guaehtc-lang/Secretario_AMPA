@@ -1,50 +1,26 @@
-"""Carga el prompt editable y prepara los mensajes."""
+"""Carga los prompts editables del proyecto."""
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
-from src.parametros import (
-    RUTA_PROMPT,
-    TIMEZONE,
-)
+from src.parametros import PROMPTS_DIR
 
 
-def cargar_prompt():
-    """Lee el prompt desde su archivo independiente."""
+ARCHIVOS_PROMPT = {
+    "reglas": "reglas_comunes.txt",
+    "clasificacion": "prompt_clasificacion.txt",
+    "redaccion": "prompt_redaccion.txt",
+    "reunion": "prompt_reunion.txt",
+    "whatsapp": "prompt_whatsapp.txt",
+}
 
-    return RUTA_PROMPT.read_text(
-        encoding="utf-8"
-    )
 
+def cargar_prompts():
+    """Lee todos los prompts desde archivos separados."""
 
-def crear_mensajes():
-    """Crea los mensajes iniciales del agente."""
+    prompts = {}
 
-    ahora = datetime.now(
-        ZoneInfo(TIMEZONE)
-    )
-
-    instrucciones = cargar_prompt()
-
-    instrucciones += (
-        "\n\nFECHA Y HORA ACTUAL: "
-        + ahora.strftime(
-            "%Y-%m-%d %H:%M"
+    for nombre, archivo in ARCHIVOS_PROMPT.items():
+        ruta = PROMPTS_DIR / archivo
+        prompts[nombre] = ruta.read_text(
+            encoding="utf-8"
         )
-        + f" ({TIMEZONE})"
-    )
 
-    return [
-        {
-            "role": "system",
-            "content": instrucciones,
-        },
-        {
-            "role": "user",
-            "content": (
-                "Revisa el siguiente correo pendiente "
-                "del buzón del AMPA y completa las acciones "
-                "autorizadas."
-            ),
-        },
-    ]
+    return prompts

@@ -1,11 +1,12 @@
-# Decisiones del MVP
+# Decisiones del MVP V0.3
 
-1. El envío directo de Gmail permanece bloqueado.
-2. Las respuestas administrativas se guardan como borradores.
-3. Las reuniones se gestionan mediante invitaciones nativas de
-   Google Calendar con los botones Sí, No y Quizás.
-4. El RAG inicial utiliza el histórico del último año.
-5. El histórico puede ampliarse cambiando un único parámetro.
-6. El agente procesa un correo por ciclo para facilitar la auditoría.
-7. WhatsApp, Drive y la vigilancia urgente 24/7 quedan como ampliaciones
-   posteriores y se incorporarán añadiendo nuevas tools y funciones.
+1. Cinco clasificaciones.
+2. Python controla el flujo.
+3. El LLM solo clasifica, redacta, extrae o resume.
+4. El RAG se actualiza con un script separado.
+5. Gmail solo lee, crea borradores y cambia el estado a leído.
+6. No se envían correos.
+7. Calendar solo consulta disponibilidad.
+8. No se crean eventos automáticos.
+9. WhatsApp empieza en modo simulado.
+10. SQLite evita reprocesar correos que siguen no leídos.

@@ -1,24 +1,36 @@
-"""Relaciona cada tool con su función Python."""
+"""Registro de funciones disponibles para el agente."""
 
-from src.calendar import (
-    consultar_disponibilidad,
-    crear_invitacion_calendar,
-)
-from src.clasificacion import clasificar_correo
+from src.calendar import consultar_disponibilidad
+from src.clasificador import clasificar_correo
 from src.gmail import (
     crear_borrador,
-    leer_correo_pendiente,
+    marcar_como_leido,
+    obtener_correos_no_leidos,
 )
-from src.memoria import registrar_resultado
-from src.rag import buscar_contexto_rag
+from src.memoria import registrar_correo
+from src.rag import consultar_rag
+from src.redactor import redactar_borrador
+from src.reuniones import extraer_reunion
+from src.urgencias import crear_resumen_whatsapp
+from src.whatsapp import enviar_whatsapp
 
 
 funciones = {
-    "leer_correo_pendiente": leer_correo_pendiente,
+    "obtener_correos_no_leidos": (
+        obtener_correos_no_leidos
+    ),
     "clasificar_correo": clasificar_correo,
-    "buscar_contexto_rag": buscar_contexto_rag,
+    "consultar_rag": consultar_rag,
+    "redactar_borrador": redactar_borrador,
     "crear_borrador": crear_borrador,
-    "consultar_disponibilidad": consultar_disponibilidad,
-    "crear_invitacion_calendar": crear_invitacion_calendar,
-    "registrar_resultado": registrar_resultado,
+    "marcar_como_leido": marcar_como_leido,
+    "extraer_reunion": extraer_reunion,
+    "consultar_disponibilidad": (
+        consultar_disponibilidad
+    ),
+    "crear_resumen_whatsapp": (
+        crear_resumen_whatsapp
+    ),
+    "enviar_whatsapp": enviar_whatsapp,
+    "registrar_correo": registrar_correo,
 }

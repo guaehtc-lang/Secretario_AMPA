@@ -1,4 +1,4 @@
-"""Conexión única con Gmail y Google Calendar mediante Composio."""
+"""Conexión reutilizable con Gmail y Google Calendar."""
 
 from functools import lru_cache
 
@@ -14,31 +14,12 @@ from src.parametros import (
 )
 
 
-HERRAMIENTAS_COMPOSIO = {
-    "gmail": {
-        "enable": [
-            "GMAIL_GET_PROFILE",
-            "GMAIL_FETCH_EMAILS",
-            "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID",
-            "GMAIL_FETCH_MESSAGE_BY_THREAD_ID",
-            "GMAIL_CREATE_EMAIL_DRAFT",
-        ]
-    },
-    "googlecalendar": {
-        "enable": [
-            "GOOGLECALENDAR_FIND_FREE_SLOTS",
-            "GOOGLECALENDAR_CREATE_EVENT",
-        ]
-    },
-}
-
-
 def crear_cliente_composio():
     """Crea el cliente de Composio."""
 
     if not COMPOSIO_API_KEY:
         raise ValueError(
-            "Falta COMPOSIO_API_KEY en .env."
+            "Falta COMPOSIO_API_KEY en el archivo .env."
         )
 
     return Composio(
@@ -49,7 +30,7 @@ def crear_cliente_composio():
 
 @lru_cache(maxsize=1)
 def obtener_sesion_google():
-    """Devuelve una sesión reutilizable y limitada."""
+    """Crea una sesión directa para Gmail y Calendar."""
 
     composio = crear_cliente_composio()
 
@@ -59,6 +40,5 @@ def obtener_sesion_google():
             "gmail",
             "googlecalendar",
         ],
-        tools=HERRAMIENTAS_COMPOSIO,
         session_preset=SESSION_PRESET_DIRECT_TOOLS,
     )

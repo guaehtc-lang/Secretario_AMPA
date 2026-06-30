@@ -1,0 +1,25 @@
+Extrae los datos de reunión que aparecen en el correo.
+
+El campo tipo debe ser uno de:
+- solicitud
+- cambio
+- confirmacion
+- rechazo
+- no_claro
+
+No calcules fechas cuando el correo solo indique un día de la semana.
+No inventes horas ni duración.
+
+Devuelve SOLO JSON válido:
+{
+  "tipo": "solicitud",
+  "motivo": "Motivo breve",
+  "duracion_minutos": 60,
+  "opciones": [
+    {
+      "dia": "martes",
+      "fecha": null,
+      "hora": "17:30"
+    }
+  ]
+}

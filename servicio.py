@@ -1,4 +1,4 @@
-"""Mantiene el agente activo y ejecuta un ciclo cada hora."""
+"""Ejecuta el agente una vez por hora dentro del horario."""
 
 import time
 from datetime import datetime
@@ -6,9 +6,9 @@ from zoneinfo import ZoneInfo
 
 from main import ejecutar_ciclo
 from src.parametros import (
-    HORA_FIN,
-    HORA_INICIO,
-    SEGUNDOS_COMPROBACION,
+    ORDINARY_END_HOUR,
+    ORDINARY_START_HOUR,
+    SCHEDULER_CHECK_SECONDS,
     TIMEZONE,
 )
 
@@ -16,27 +16,17 @@ from src.parametros import (
 ultima_hora = None
 
 while True:
-    ahora = datetime.now(
-        ZoneInfo(TIMEZONE)
-    )
-
-    hora_actual = ahora.strftime(
-        "%Y-%m-%d %H"
-    )
+    ahora = datetime.now(ZoneInfo(TIMEZONE))
+    hora_actual = ahora.strftime("%Y-%m-%d %H")
 
     dentro_horario = (
-        HORA_INICIO
+        ORDINARY_START_HOUR
         <= ahora.hour
-        <= HORA_FIN
+        <= ORDINARY_END_HOUR
     )
 
-    if (
-        dentro_horario
-        and hora_actual != ultima_hora
-    ):
+    if dentro_horario and hora_actual != ultima_hora:
         print(ejecutar_ciclo())
         ultima_hora = hora_actual
 
-    time.sleep(
-        SEGUNDOS_COMPROBACION
-    )
+    time.sleep(SCHEDULER_CHECK_SECONDS)

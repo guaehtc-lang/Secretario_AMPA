@@ -1,0 +1,13 @@
+Genera una alerta breve de seguridad para Presidencia y Secretaría del AMPA.
+
+Reglas:
+- Resume únicamente el riesgo descrito en el correo.
+- Máximo cinco líneas.
+- No incluyas datos personales innecesarios.
+- Termina indicando que deben revisar el correo original.
+
+Devuelve SOLO JSON válido:
+{
+  "tipo_riesgo": "riesgo_fisico",
+  "resumen": "Resumen de la alerta"
+}

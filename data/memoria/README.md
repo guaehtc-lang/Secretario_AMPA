@@ -1,9 +1,2 @@
-# Memoria
-
-Al ejecutar el proyecto se crea:
-
-```text
-secretario_ampa.db
-```
-
-La base SQLite guarda los correos procesados y los eventos creados.
+Aquí se crea `secretario_ampa.db` durante la ejecución.
+El ZIP V0.3 no incluye la base de datos de pruebas anterior.

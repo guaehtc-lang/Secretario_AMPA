@@ -1,126 +1,90 @@
-# Secretario AMPA
+# Secretario AMPA V0.3
 
-Proyecto reorganizado con la estructura de function calling vista
-en clase.
+Versión simplificada y controlada por Python.
+El LLM ya no elige herramientas ni controla el bucle.
 
-## Idea principal
-
-`main.py` solo reúne las piezas:
-
-```python
-mensajes = crear_mensajes()
-
-print(
-    ejecutar_agente(
-        mensajes,
-        tools,
-        funciones,
-    )
-)
-```
-
-Cada parte se modifica en un archivo independiente:
-
-| Necesidad | Archivo |
-|---|---|
-| Cambiar comportamiento del agente | `prompts/prompt_agente.txt` |
-| Cambiar modelo, temperatura o límites | `src/parametros.py` |
-| Añadir o modificar tools | `src/tools.py` |
-| Registrar funciones disponibles | `src/funciones.py` |
-| Cambiar el bucle del agente | `src/agente.py` |
-| Cambiar Gmail | `src/gmail.py` |
-| Cambiar Calendar | `src/calendar.py` |
-| Cambiar el RAG | `src/rag.py` |
-| Cambiar la memoria | `src/memoria.py` |
-
-## Estructura
+## Estructura principal
 
 ```text
 main.py
-   ├── prompt.py ── prompts/prompt_agente.txt
-   ├── parametros.py ── .env
-   ├── tools.py
-   ├── funciones.py
-   │     ├── gmail.py
-   │     ├── calendar.py
-   │     ├── rag.py
-   │     └── memoria.py
-   └── agente.py
+  ├── src/prompt.py      → carga varios prompts
+  ├── src/tools.py       → catálogo de tools internas
+  ├── src/funciones.py   → funciones Python registradas
+  └── src/agente.py      → flujo controlado por Python
 ```
 
-## Primera configuración
+## Clasificaciones
 
-1. Copia `.env.example` como `.env`.
-2. Añade `LLM_API_KEY` y `COMPOSIO_API_KEY`.
-3. Instala dependencias:
+- `informativo`
+- `necesita_respuesta`
+- `reunion`
+- `urgente_seguridad`
+- `no_clasificado`
+
+## Estado leído/no leído
+
+| Clasificación | Estado final |
+|---|---|
+| Informativo | No leído |
+| Necesita respuesta | Leído si se crea el borrador |
+| Reunión | Leído si se crea el borrador o se registra confirmación/rechazo |
+| Urgencia | Leído si se registra la alerta de WhatsApp |
+| No clasificado | No leído |
+
+SQLite impide reprocesar los mensajes informativos o no clasificados que permanecen no leídos.
+
+## Primera ejecución
+
+1. Completa las claves en `.env`:
+
+```text
+LLM_API_KEY=
+COMPOSIO_API_KEY=
+```
+
+2. Instala dependencias:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Autoriza Google:
+3. Autoriza Google:
 
 ```bash
 python autorizar_google.py
 ```
 
-5. Carga el histórico del último año:
+4. Crea el RAG separado:
 
 ```bash
 python actualizar_rag.py
 ```
 
-6. Ejecuta un ciclo:
+5. Ejecuta el agente:
 
 ```bash
 python main.py
 ```
 
-7. Servicio horario:
+## RAG separado
 
-```bash
-python servicio.py
-```
+`actualizar_rag.py` construye el histórico usando correos enviados.
+El agente solo ejecuta `consultar_rag()` cuando necesita redactar una respuesta.
 
-## Cómo ampliar el agente
+## Calendar
 
-Para añadir una herramienta:
+V0.3 consulta disponibilidad y crea un borrador con propuestas.
+No crea eventos ni envía invitaciones automáticas.
 
-1. Crea su función en el archivo del área correspondiente.
-2. Añade su descripción en `src/tools.py`.
-3. Registra la función en `src/funciones.py`.
-4. Añade al prompt una regla únicamente si el agente necesita saber
-   cuándo utilizarla.
+## WhatsApp
 
-No hay que modificar `main.py` ni el bucle general del agente.
+V0.3 utiliza `WHATSAPP_MODE=simulado`.
+La alerta se muestra en consola y se guarda localmente, pero no se envía a teléfonos reales.
 
-## RAG
+## Seguridad
 
-El histórico se guarda localmente en:
-
-```text
-data/rag/correos_historicos.jsonl
-```
-
-El número de años se cambia en `.env` o `src/parametros.py`:
-
-```text
-RAG_ANIOS_HISTORIAL=1
-```
-
-Para pasar a cinco años:
-
-```text
-RAG_ANIOS_HISTORIAL=5
-```
-
-Después se vuelve a ejecutar `actualizar_rag.py`.
-
-## Seguridad actual
-
-- No existe ninguna tool para enviar correos.
-- Gmail solo puede leer y crear borradores.
-- Calendar puede consultar disponibilidad y enviar invitaciones
-  con Sí, No y Quizás.
-- Los eventos se vuelven a comprobar antes de crearse.
-- SQLite evita reprocesar correos y duplicar eventos.
+- No existe función para enviar correos.
+- Los borradores requieren revisión humana.
+- Calendar no crea eventos.
+- El LLM no recibe herramientas.
+- Python controla todas las acciones externas.

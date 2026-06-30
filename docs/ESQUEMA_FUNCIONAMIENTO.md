@@ -1,51 +1,20 @@
-# Esquema de funcionamiento
+# Esquema de funcionamiento V0.3
 
 ```text
-                     ┌──────────────────────┐
-                     │       main.py        │
-                     └──────────┬───────────┘
-                                │
-          ┌─────────────────────┼─────────────────────┐
-          │                     │                     │
-          ▼                     ▼                     ▼
-   prompt.py              parametros.py             tools.py
-          │                     │                     │
-          ▼                     ▼                     ▼
- prompt_agente.txt          .env                  lista tools
-          │                                           │
-          └─────────────────┬─────────────────────────┘
-                            ▼
-                 ┌──────────────────────┐
-                 │ ejecutar_agente(...) │
-                 │      agente.py       │
-                 └──────────┬───────────┘
-                            │
-                            ▼
-                     funciones.py
-                            │
-          ┌─────────────────┼──────────────────┐
-          ▼                 ▼                  ▼
-       gmail.py         calendar.py          rag.py
-          │                 │                  │
-          ▼                 ▼                  ▼
-        Gmail        Google Calendar     histórico JSONL
-                            │
-                            ▼
-                       memoria.py
-                          SQLite
-```
-
-## Flujo de un correo
-
-```text
-leer correo
-   ↓
-recuperar hilo
-   ↓
+main.py
+  ↓
+carga prompts + tools + funciones
+  ↓
+Gmail obtiene no leídos por fecha ascendente
+  ↓
 LLM clasifica
-   ├── informativo → registrar
-   ├── respuesta → consultar RAG → crear borrador → registrar
-   ├── reunión → consultar Calendar → crear invitación → registrar
-   ├── contrapropuesta → volver a consultar Calendar
-   └── revisión manual → registrar sin acción externa
+  ↓
+Python selecciona el flujo
+  ├── informativo → registrar → conservar no leído
+  ├── respuesta → RAG → redactar → borrador → leído
+  ├── reunión → extraer → Calendar → borrador → leído
+  ├── urgencia → resumen → WhatsApp simulado → leído
+  └── no clasificado → registrar → conservar no leído
 ```
+
+El LLM nunca decide qué función se ejecuta.

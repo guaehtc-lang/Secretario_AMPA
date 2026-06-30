@@ -3,4 +3,4 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 data/memoria/*.db
-data/rag/*.jsonl
+logs/*.log

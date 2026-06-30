@@ -1,11 +1,2 @@
-# Histórico del RAG
-
-`actualizar_rag.py` crea aquí:
-
-```text
-correos_historicos.jsonl
-```
-
-Cada línea contiene un correo histórico con su ID, fecha, asunto,
-remitente y cuerpo. El archivo no se incluye en Git ni en el ZIP
-porque puede contener datos personales.
+Ejecuta `python actualizar_rag.py` para crear el histórico local.
+El agente únicamente consulta este archivo; no lo actualiza durante el ciclo.

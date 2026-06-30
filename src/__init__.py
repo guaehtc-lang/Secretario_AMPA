@@ -1,1 +1,1 @@
-"""Paquete del agente Secretario AMPA."""
+"""Paquete del agente Secretario AMPA V0.3."""

@@ -1,306 +1,74 @@
-"""Descripción de las herramientas visibles para el LLM."""
+"""Catálogo interno de tools controladas por Python.
 
-tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "leer_correo_pendiente",
-            "description": (
-                "Lee el correo no procesado más reciente "
-                "y su hilo. Debe ser siempre la primera "
-                "herramienta del ciclo."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {},
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "clasificar_correo",
-            "description": (
-                "Valida en Python la clasificación propuesta "
-                "para el correo actual. Debe ser siempre la "
-                "segunda herramienta. La clasificación "
-                "devuelta es obligatoria para el resto del ciclo."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "clasificacion_propuesta": {
-                        "type": "string",
-                        "enum": [
-                            "informativo",
-                            "requiere_respuesta",
-                            "solicitud_reunion",
-                            "confirmacion_reunion",
-                            "rechazo_reunion",
-                            "urgencia_seguridad",
-                            "revision_manual",
-                        ],
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "clasificacion_propuesta",
-                ],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "buscar_contexto_rag",
-            "description": (
-                "Busca respuestas históricas enviadas y "
-                "suficientemente similares al correo actual. "
-                "Usa siempre la clasificación devuelta por "
-                "clasificar_correo."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "consulta": {
-                        "type": "string",
-                    },
-                    "clasificacion": {
-                        "type": "string",
-                        "enum": [
-                            "requiere_respuesta",
-                            "solicitud_reunion",
-                            "rechazo_reunion",
-                        ],
-                    },
-                    "limite": {
-                        "type": "integer",
-                        "default": 3,
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "consulta",
-                    "clasificacion",
-                ],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "crear_borrador",
-            "description": (
-                "Crea un borrador, nunca lo envía. "
-                "Debe llamarse después del RAG y usando "
-                "la clasificación validada."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "asunto": {
-                        "type": "string",
-                    },
-                    "cuerpo": {
-                        "type": "string",
-                    },
-                    "clasificacion": {
-                        "type": "string",
-                        "enum": [
-                            "requiere_respuesta",
-                            "solicitud_reunion",
-                            "rechazo_reunion",
-                        ],
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "asunto",
-                    "cuerpo",
-                    "clasificacion",
-                ],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "consultar_disponibilidad",
-            "description": (
-                "Consulta Calendar para una solicitud de reunión. "
-                "En un rechazo solo puede usarse cuando Python haya "
-                "validado una contrapropuesta concreta."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "clasificacion": {
-                        "type": "string",
-                        "enum": [
-                            "solicitud_reunion",
-                            "rechazo_reunion",
-                        ],
-                    },
-                    "opciones": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "dia": {
-                                    "type": "string",
-                                },
-                                "fecha": {
-                                    "type": "string",
-                                },
-                                "hora_desde": {
-                                    "type": "string",
-                                },
-                            },
-                            "required": [
-                                "hora_desde"
-                            ],
-                        },
-                    },
-                    "duracion_minutos": {
-                        "type": "integer",
-                        "default": 60,
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "clasificacion",
-                    "opciones",
-                ],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "crear_invitacion_calendar",
-            "description": (
-                "Crea una invitación de Calendar para una "
-                "solicitud o una contrapropuesta validada. "
-                "Nunca crea eventos para un rechazo simple."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "clasificacion": {
-                        "type": "string",
-                        "enum": [
-                            "solicitud_reunion",
-                            "rechazo_reunion",
-                        ],
-                    },
-                    "titulo": {
-                        "type": "string",
-                    },
-                    "opcion": {
-                        "type": "object",
-                        "properties": {
-                            "dia": {
-                                "type": "string",
-                            },
-                            "fecha": {
-                                "type": "string",
-                            },
-                            "hora_desde": {
-                                "type": "string",
-                            },
-                        },
-                        "required": [
-                            "hora_desde"
-                        ],
-                    },
-                    "duracion_minutos": {
-                        "type": "integer",
-                        "default": 60,
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "clasificacion",
-                    "titulo",
-                    "opcion",
-                ],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "registrar_resultado",
-            "description": (
-                "Registra el resultado final. Solo acepta "
-                "la clasificación previamente validada por "
-                "clasificar_correo."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "message_id": {
-                        "type": "string",
-                    },
-                    "clasificacion": {
-                        "type": "string",
-                        "enum": [
-                            "informativo",
-                            "requiere_respuesta",
-                            "solicitud_reunion",
-                            "confirmacion_reunion",
-                            "rechazo_reunion",
-                            "urgencia_seguridad",
-                            "revision_manual",
-                        ],
-                    },
-                    "resumen": {
-                        "type": "string",
-                    },
-                    "acciones_realizadas": {
-                        "type": "string",
-                    },
-                    "estado_reunion": {
-                        "type": "string",
-                    },
-                    "requiere_revision": {
-                        "type": "boolean",
-                    },
-                },
-                "required": [
-                    "message_id",
-                    "clasificacion",
-                    "resumen",
-                    "acciones_realizadas",
-                ],
-            },
-        },
-    },
-]
+El LLM no recibe estas tools. Python decide cuándo utilizarlas.
+"""
 
 
-
-# Impide que el modelo añada parámetros no definidos.
-for tool in tools:
-    tool[
-        "function"
-    ][
-        "parameters"
-    ][
-        "additionalProperties"
-    ] = False
+tools = {
+    "obtener_correos_no_leidos": {
+        "area": "gmail",
+        "descripcion": (
+            "Obtiene correos no leídos por orden cronológico."
+        ),
+    },
+    "clasificar_correo": {
+        "area": "llm",
+        "descripcion": (
+            "Clasifica en cinco categorías cerradas."
+        ),
+    },
+    "consultar_rag": {
+        "area": "rag",
+        "descripcion": (
+            "Recupera correos enviados similares."
+        ),
+    },
+    "redactar_borrador": {
+        "area": "llm",
+        "descripcion": (
+            "Redacta un borrador con contexto controlado."
+        ),
+    },
+    "crear_borrador": {
+        "area": "gmail",
+        "descripcion": (
+            "Crea un borrador. Nunca envía el correo."
+        ),
+    },
+    "marcar_como_leido": {
+        "area": "gmail",
+        "descripcion": (
+            "Quita la etiqueta UNREAD tras completar la acción."
+        ),
+    },
+    "extraer_reunion": {
+        "area": "llm",
+        "descripcion": (
+            "Extrae tipo, motivo, fechas y horas."
+        ),
+    },
+    "consultar_disponibilidad": {
+        "area": "calendar",
+        "descripcion": (
+            "Consulta huecos sin crear eventos."
+        ),
+    },
+    "crear_resumen_whatsapp": {
+        "area": "llm",
+        "descripcion": (
+            "Resume una urgencia en cinco líneas."
+        ),
+    },
+    "enviar_whatsapp": {
+        "area": "whatsapp",
+        "descripcion": (
+            "Registra una alerta simulada en V0.3."
+        ),
+    },
+    "registrar_correo": {
+        "area": "memoria",
+        "descripcion": (
+            "Guarda el resultado y evita duplicados."
+        ),
+    },
+}
