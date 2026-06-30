@@ -161,11 +161,32 @@ ORDINARY_END_HOUR = int(
         "23",
     )
 )
-SCHEDULER_CHECK_SECONDS = int(
-    os.getenv(
-        "SCHEDULER_CHECK_SECONDS",
-        "60",
-    )
+GMAIL_CHECK_SECONDS = max(
+    1,
+    int(
+        os.getenv(
+            "GMAIL_CHECK_SECONDS",
+            "300",
+        )
+    ),
+)
+TELEGRAM_CHECK_SECONDS = max(
+    1,
+    int(
+        os.getenv(
+            "TELEGRAM_CHECK_SECONDS",
+            "15",
+        )
+    ),
+)
+SERVICE_LOOP_SECONDS = max(
+    1,
+    int(
+        os.getenv(
+            "SERVICE_LOOP_SECONDS",
+            "2",
+        )
+    ),
 )
 
 # Salida
