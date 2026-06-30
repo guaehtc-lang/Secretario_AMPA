@@ -1,4 +1,4 @@
-"""Ejecuta el agente una vez por hora dentro del horario."""
+"""Ejecuta Gmail por hora y revisa Telegram periódicamente."""
 
 import json
 import time
@@ -6,6 +6,11 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from main import ejecutar_ciclo
+from src.agente import (
+    procesar_actualizaciones_telegram,
+)
+from src.funciones import funciones
+from src.memoria import inicializar_memoria
 from src.parametros import (
     ORDINARY_END_HOUR,
     ORDINARY_START_HOUR,
@@ -15,17 +20,39 @@ from src.parametros import (
 
 
 def ejecutar_servicio():
-    """Mantiene activo el ciclo horario."""
+    """Mantiene activos Gmail y Telegram."""
 
+    inicializar_memoria()
     ultima_hora = None
 
     while True:
         ahora = datetime.now(
-            ZoneInfo(TIMEZONE)
+            ZoneInfo(
+                TIMEZONE
+            )
         )
         hora_actual = ahora.strftime(
             "%Y-%m-%d %H"
         )
+
+        resultado_telegram = (
+            procesar_actualizaciones_telegram(
+                funciones
+            )
+        )
+
+        if resultado_telegram.get(
+            "procesadas",
+            0,
+        ):
+            print(
+                json.dumps(
+                    resultado_telegram,
+                    ensure_ascii=False,
+                    indent=2,
+                    default=str,
+                )
+            )
 
         dentro_horario = (
             ORDINARY_START_HOUR
@@ -37,7 +64,9 @@ def ejecutar_servicio():
             dentro_horario
             and hora_actual != ultima_hora
         ):
-            resultado = ejecutar_ciclo()
+            resultado = ejecutar_ciclo(
+                procesar_telegram=False
+            )
 
             print(
                 json.dumps(

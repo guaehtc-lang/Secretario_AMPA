@@ -716,27 +716,84 @@ def procesar_urgencia(
     funciones,
     prompts,
 ):
-    """Genera una alerta y marca leído si funciona."""
+    """Crea borrador y solicita autorización por Telegram."""
 
     mostrar(
         "LLM",
-        "Generando resumen de WhatsApp",
+        "Generando resumen de Telegram",
     )
 
     alerta = funciones[
-        "crear_resumen_whatsapp"
+        "crear_resumen_telegram"
     ](
         correo,
         prompts,
     )
 
     mostrar(
-        "WHATSAPP",
-        "Registrando alerta simulada",
+        "LLM",
+        "Redactando borrador urgente",
+    )
+
+    borrador = funciones[
+        "redactar_borrador"
+    ](
+        correo=correo,
+        prompts=prompts,
+        tipo="urgente",
+    )
+
+    mostrar(
+        "GMAIL",
+        "Creando borrador urgente",
+    )
+
+    creado = funciones[
+        "crear_borrador"
+    ](
+        message_id=correo[
+            "message_id"
+        ],
+        asunto=borrador[
+            "asunto"
+        ],
+        cuerpo=borrador[
+            "cuerpo"
+        ],
+    )
+
+    if not creado.get(
+        "ok"
+    ):
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion=(
+                "urgente_seguridad"
+            ),
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion="error_borrador_urgente",
+            estado_gmail="no_leido",
+            requiere_revision=True,
+            error=str(
+                creado
+            ),
+            resultado={
+                "alerta": alerta,
+                "borrador": borrador,
+                "gmail": creado,
+            },
+        )
+
+    mostrar(
+        "TELEGRAM",
+        "Enviando alerta y solicitud de revisión",
     )
 
     enviado = funciones[
-        "enviar_whatsapp"
+        "enviar_alerta_telegram"
     ](
         message_id=correo[
             "message_id"
@@ -747,51 +804,75 @@ def procesar_urgencia(
         tipo_riesgo=alerta[
             "tipo_riesgo"
         ],
+        draft_id=creado.get(
+            "draft_id",
+            "",
+        ),
+        asunto_borrador=borrador[
+            "asunto"
+        ],
+        cuerpo_borrador=borrador[
+            "cuerpo"
+        ],
     )
 
-    if enviado.get(
+    if not enviado.get(
         "ok"
     ):
-        mostrar(
-            "GMAIL",
-            "Marcando correo como leído",
-        )
-
-        leido = funciones[
-            "marcar_como_leido"
-        ](
-            correo[
-                "message_id"
-            ]
-        )
-
-    else:
-        leido = {
-            "ok": False,
-            "estado": (
-                "no_marcado_por_fallo_whatsapp"
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion=(
+                "urgente_seguridad"
             ),
-        }
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion="error_telegram",
+            estado_gmail="no_leido",
+            draft_id=creado.get(
+                "draft_id",
+                "",
+            ),
+            requiere_revision=True,
+            error=str(
+                enviado
+            ),
+            resultado={
+                "alerta": alerta,
+                "borrador": borrador,
+                "gmail": creado,
+                "telegram": enviado,
+            },
+        )
 
-    if (
-        enviado.get(
-            "ok"
-        )
-        and leido.get(
-            "ok"
-        )
+    mostrar(
+        "GMAIL",
+        "Marcando correo como leído",
+    )
+
+    leido = funciones[
+        "marcar_como_leido"
+    ](
+        correo[
+            "message_id"
+        ]
+    )
+
+    if leido.get(
+        "ok"
     ):
         accion = (
-            "alerta_whatsapp_registrada"
+            "borrador_urgente_creado_"
+            "alerta_telegram_enviada"
         )
         estado_gmail = "leido"
         error = ""
 
-    elif enviado.get(
-        "ok"
-    ):
+    else:
         accion = (
-            "alerta_whatsapp_registrada_"
+            "borrador_urgente_creado_"
+            "alerta_telegram_enviada_"
             "pendiente_leido"
         )
         estado_gmail = (
@@ -799,13 +880,6 @@ def procesar_urgencia(
         )
         error = str(
             leido
-        )
-
-    else:
-        accion = "error_whatsapp"
-        estado_gmail = "no_leido"
-        error = str(
-            enviado
         )
 
     return registrar(
@@ -819,15 +893,17 @@ def procesar_urgencia(
         ],
         accion=accion,
         estado_gmail=estado_gmail,
-        requiere_revision=(
-            not enviado.get(
-                "ok"
-            )
+        draft_id=creado.get(
+            "draft_id",
+            "",
         ),
+        requiere_revision=True,
         error=error,
         resultado={
             "alerta": alerta,
-            "whatsapp": enviado,
+            "borrador": borrador,
+            "gmail": creado,
+            "telegram": enviado,
             "marcar_leido": leido,
         },
     )
@@ -954,12 +1030,471 @@ def procesar_correo(
         )
 
 
+def actualizar_correo_desde_telegram(
+    funciones,
+    alerta,
+    accion,
+    requiere_revision,
+    resultado_extra,
+):
+    """Actualiza el registro del correo tras una decisión."""
+
+    registro = funciones[
+        "obtener_registro_correo"
+    ](
+        alerta[
+            "message_id"
+        ]
+    )
+
+    if not registro:
+        return {
+            "ok": False,
+            "estado": "correo_no_encontrado",
+        }
+
+    resultado = registro.get(
+        "resultado",
+        {},
+    )
+
+    if not isinstance(
+        resultado,
+        dict,
+    ):
+        resultado = {}
+
+    resultado.update(
+        resultado_extra
+        or {}
+    )
+
+    return funciones[
+        "registrar_correo"
+    ](
+        message_id=alerta[
+            "message_id"
+        ],
+        clasificacion=registro.get(
+            "clasificacion",
+            "urgente_seguridad",
+        ),
+        resumen=registro.get(
+            "resumen",
+            "",
+        ),
+        accion=accion,
+        estado_gmail=registro.get(
+            "estado_gmail",
+            "leido",
+        ),
+        draft_id=registro.get(
+            "draft_id",
+            "",
+        ),
+        requiere_revision=(
+            requiere_revision
+        ),
+        error="",
+        resultado=resultado,
+    )
+
+
+def procesar_actualizaciones_telegram(
+    funciones,
+):
+    """Procesa botones pendientes del bot."""
+
+    offset = funciones[
+        "obtener_estado"
+    ](
+        "telegram_offset",
+        "0",
+    )
+
+    consulta = funciones[
+        "obtener_actualizaciones"
+    ](
+        offset
+    )
+
+    if not consulta.get(
+        "ok"
+    ):
+        return {
+            "ok": False,
+            "estado": "error_consultando_telegram",
+            "procesadas": 0,
+            "error": consulta,
+            "resultados": [],
+        }
+
+    resultados = []
+    siguiente_offset = int(
+        offset
+        or 0
+    )
+
+    for actualizacion in consulta.get(
+        "actualizaciones",
+        [],
+    ):
+        update_id = int(
+            actualizacion.get(
+                "update_id",
+                0,
+            )
+        )
+
+        siguiente_offset = max(
+            siguiente_offset,
+            update_id + 1,
+        )
+
+        datos = funciones[
+            "datos_callback"
+        ](
+            actualizacion
+        )
+
+        callback_id = datos.get(
+            "callback_query_id",
+            "",
+        )
+
+        if not callback_id:
+            continue
+
+        if not funciones[
+            "callback_autorizado"
+        ](
+            actualizacion
+        ):
+            funciones[
+                "responder_callback"
+            ](
+                callback_id,
+                "Chat no autorizado.",
+            )
+            continue
+
+        alerta = funciones[
+            "obtener_alerta_por_codigo"
+        ](
+            datos.get(
+                "codigo",
+                "",
+            )
+        )
+
+        if not alerta:
+            funciones[
+                "responder_callback"
+            ](
+                callback_id,
+                "La alerta ya no está pendiente.",
+            )
+            funciones[
+                "retirar_botones"
+            ](
+                datos.get(
+                    "chat_id"
+                ),
+                datos.get(
+                    "message_id"
+                ),
+            )
+            continue
+
+        estado = alerta.get(
+            "resultado",
+            {},
+        ).get(
+            "estado",
+            "",
+        )
+        accion = datos.get(
+            "accion",
+            "",
+        )
+        codigo = datos.get(
+            "codigo",
+            "",
+        )
+
+        if accion in {
+            "pendiente",
+            "no",
+        }:
+            actualizado = funciones[
+                "actualizar_alerta"
+            ](
+                message_id=alerta[
+                    "message_id"
+                ],
+                estado="envio_rechazado",
+                cambios={
+                    "decision": accion,
+                },
+            )
+
+            confirmacion = funciones[
+                "enviar_confirmacion_telegram"
+            ](
+                codigo,
+                (
+                    "No se enviará el correo. "
+                    "El borrador permanece en Gmail "
+                    "para revisión manual."
+                ),
+            )
+
+            actualizar_correo_desde_telegram(
+                funciones=funciones,
+                alerta=alerta,
+                accion=(
+                    "envio_urgente_rechazado"
+                ),
+                requiere_revision=True,
+                resultado_extra={
+                    "telegram_decision": actualizado,
+                    "telegram_confirmacion": (
+                        confirmacion
+                    ),
+                },
+            )
+
+            funciones[
+                "responder_callback"
+            ](
+                callback_id,
+                "Correo no autorizado.",
+            )
+            funciones[
+                "retirar_botones"
+            ](
+                datos.get(
+                    "chat_id"
+                ),
+                datos.get(
+                    "message_id"
+                ),
+            )
+
+            resultados.append({
+                "codigo": codigo,
+                "estado": "envio_rechazado",
+            })
+            continue
+
+        if (
+            accion == "ver"
+            and estado
+            == "esperando_revision_borrador"
+        ):
+            enviado = funciones[
+                "enviar_borrador_telegram"
+            ](
+                alerta
+            )
+
+            if enviado.get(
+                "ok"
+            ):
+                actualizado = funciones[
+                    "actualizar_alerta"
+                ](
+                    message_id=alerta[
+                        "message_id"
+                    ],
+                    estado=(
+                        "esperando_autorizacion_envio"
+                    ),
+                    cambios={
+                        "telegram_borrador": enviado,
+                    },
+                )
+
+                actualizar_correo_desde_telegram(
+                    funciones=funciones,
+                    alerta=alerta,
+                    accion=(
+                        "borrador_urgente_"
+                        "enviado_telegram"
+                    ),
+                    requiere_revision=True,
+                    resultado_extra={
+                        "telegram_revision": (
+                            actualizado
+                        ),
+                    },
+                )
+
+                funciones[
+                    "responder_callback"
+                ](
+                    callback_id,
+                    "Borrador enviado.",
+                )
+                funciones[
+                    "retirar_botones"
+                ](
+                    datos.get(
+                        "chat_id"
+                    ),
+                    datos.get(
+                        "message_id"
+                    ),
+                )
+
+                resultados.append({
+                    "codigo": codigo,
+                    "estado": (
+                        "esperando_autorizacion_envio"
+                    ),
+                })
+
+            else:
+                funciones[
+                    "responder_callback"
+                ](
+                    callback_id,
+                    "No se pudo enviar el borrador.",
+                )
+
+                resultados.append({
+                    "codigo": codigo,
+                    "estado": (
+                        "error_enviando_borrador_telegram"
+                    ),
+                    "error": enviado,
+                })
+
+            continue
+
+        if (
+            accion == "enviar"
+            and estado
+            == "esperando_autorizacion_envio"
+        ):
+            enviado = funciones[
+                "enviar_borrador"
+            ](
+                alerta.get(
+                    "resultado",
+                    {},
+                ).get(
+                    "draft_id",
+                    "",
+                )
+            )
+
+            if enviado.get(
+                "ok"
+            ):
+                actualizado = funciones[
+                    "actualizar_alerta"
+                ](
+                    message_id=alerta[
+                        "message_id"
+                    ],
+                    estado="correo_enviado",
+                    cambios={
+                        "gmail_envio": enviado,
+                    },
+                )
+
+                confirmacion = funciones[
+                    "enviar_confirmacion_telegram"
+                ](
+                    codigo,
+                    "Correo enviado correctamente.",
+                )
+
+                actualizar_correo_desde_telegram(
+                    funciones=funciones,
+                    alerta=alerta,
+                    accion="correo_urgente_enviado",
+                    requiere_revision=False,
+                    resultado_extra={
+                        "telegram_autorizacion": (
+                            actualizado
+                        ),
+                        "telegram_confirmacion": (
+                            confirmacion
+                        ),
+                    },
+                )
+
+                funciones[
+                    "responder_callback"
+                ](
+                    callback_id,
+                    "Correo enviado.",
+                )
+                funciones[
+                    "retirar_botones"
+                ](
+                    datos.get(
+                        "chat_id"
+                    ),
+                    datos.get(
+                        "message_id"
+                    ),
+                )
+
+                resultados.append({
+                    "codigo": codigo,
+                    "estado": "correo_enviado",
+                })
+
+            else:
+                funciones[
+                    "responder_callback"
+                ](
+                    callback_id,
+                    "No se pudo enviar el correo.",
+                )
+
+                resultados.append({
+                    "codigo": codigo,
+                    "estado": "error_enviando_correo",
+                    "error": enviado,
+                })
+
+            continue
+
+        funciones[
+            "responder_callback"
+        ](
+            callback_id,
+            "Acción no válida para el estado actual.",
+        )
+
+    funciones[
+        "guardar_estado"
+    ](
+        "telegram_offset",
+        siguiente_offset,
+    )
+
+    return {
+        "ok": True,
+        "estado": "telegram_procesado",
+        "procesadas": len(
+            resultados
+        ),
+        "resultados": resultados,
+    }
+
+
 def ejecutar_agente(
     tools,
     funciones,
     prompts,
+    procesar_telegram=True,
 ):
-    """Procesa todos los correos pendientes."""
+    """Procesa Telegram y todos los correos pendientes."""
 
     faltan = [
         nombre
@@ -972,6 +1507,26 @@ def ejecutar_agente(
             "ok": False,
             "estado": "faltan_funciones",
             "funciones": faltan,
+        }
+
+    if procesar_telegram:
+        mostrar(
+            "TELEGRAM",
+            "Consultando autorizaciones pendientes",
+        )
+
+        resultado_telegram = (
+            procesar_actualizaciones_telegram(
+                funciones
+            )
+        )
+
+    else:
+        resultado_telegram = {
+            "ok": True,
+            "estado": "consulta_telegram_omitida",
+            "procesadas": 0,
+            "resultados": [],
         }
 
     mostrar(
@@ -988,6 +1543,7 @@ def ejecutar_agente(
             "ok": True,
             "estado": "sin_correos_nuevos",
             "procesados": 0,
+            "telegram": resultado_telegram,
             "resultados": [],
         }
 
@@ -1041,5 +1597,6 @@ def ejecutar_agente(
         "procesados": len(
             resultados
         ),
+        "telegram": resultado_telegram,
         "resultados": resultados,
     }

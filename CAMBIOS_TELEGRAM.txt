@@ -1,0 +1,20 @@
+CAMBIOS MANUALES DESPUÉS DE COPIAR EL PARCHE
+
+1. Elimina estos archivos antiguos:
+   src/whatsapp.py
+   prompts/prompt_whatsapp.txt
+
+2. En tu archivo .env ya configurado, comprueba:
+
+   TELEGRAM_ENABLED=true
+   TELEGRAM_BOT_TOKEN=TU_TOKEN_REAL
+   TELEGRAM_CHAT_ID=TU_CHAT_ID_REAL
+
+3. Cambia esta línea para permitir el envío únicamente tras pulsar
+   el botón final de Telegram:
+
+   ALLOW_EMAIL_SEND=true
+
+4. Instala la dependencia:
+
+   pip install -r requirements.txt

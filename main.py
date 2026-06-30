@@ -9,7 +9,9 @@ from src.prompts import cargar_prompts
 from src.tools import tools
 
 
-def ejecutar_ciclo():
+def ejecutar_ciclo(
+    procesar_telegram=True,
+):
     """Prepara prompts, tools y funciones."""
 
     inicializar_memoria()
@@ -19,6 +21,7 @@ def ejecutar_ciclo():
         tools=tools,
         funciones=funciones,
         prompts=prompts,
+        procesar_telegram=procesar_telegram,
     )
 
 

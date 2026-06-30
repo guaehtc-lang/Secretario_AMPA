@@ -19,6 +19,7 @@ from src.memoria import (
 )
 from src.parametros import (
     ALLOW_CREATE_DRAFTS,
+    ALLOW_EMAIL_SEND,
     ALLOW_MARK_AS_READ,
     COMPOSIO_API_KEY,
     COMPOSIO_USER_ID,
@@ -1084,3 +1085,178 @@ def marcar_como_leido(
         "verificado": False,
         "errores": errores[-8:],
     }
+
+
+def _argumentos_enviar_borrador(
+    parametros,
+    draft_id,
+):
+    """Construye argumentos según el schema disponible."""
+
+    propiedades = parametros.get(
+        "properties",
+        {},
+    )
+    argumentos = {}
+
+    if "draft_id" in propiedades:
+        argumentos[
+            "draft_id"
+        ] = draft_id
+
+    elif "draftId" in propiedades:
+        argumentos[
+            "draftId"
+        ] = draft_id
+
+    elif "id" in propiedades:
+        argumentos[
+            "id"
+        ] = draft_id
+
+    else:
+        return None
+
+    if "user_id" in propiedades:
+        argumentos[
+            "user_id"
+        ] = "me"
+
+    return argumentos
+
+
+def enviar_borrador(
+    draft_id,
+):
+    """Envía un borrador autorizado desde Telegram."""
+
+    if not ALLOW_EMAIL_SEND:
+        return {
+            "ok": False,
+            "estado": "envio_email_desactivado",
+        }
+
+    if not draft_id:
+        return {
+            "ok": False,
+            "estado": "draft_id_vacio",
+        }
+
+    sesion = obtener_sesion_google()
+    candidatos = []
+
+    for tool in _tools_disponibles(
+        sesion
+    ):
+        nombre = tool[
+            "nombre"
+        ]
+
+        if (
+            nombre.upper()
+            == "GMAIL_SEND_DRAFT"
+        ):
+            argumentos = (
+                _argumentos_enviar_borrador(
+                    tool[
+                        "parametros"
+                    ],
+                    draft_id,
+                )
+            )
+
+            if argumentos:
+                candidatos.append(
+                    (
+                        nombre,
+                        argumentos,
+                    )
+                )
+
+    candidatos += [
+        (
+            "GMAIL_SEND_DRAFT",
+            {
+                "draft_id": draft_id,
+                "user_id": "me",
+            },
+        ),
+        (
+            "GMAIL_SEND_DRAFT",
+            {
+                "id": draft_id,
+                "user_id": "me",
+            },
+        ),
+    ]
+
+    errores = []
+    vistos = set()
+
+    for nombre, argumentos in candidatos:
+        clave = (
+            nombre,
+            str(
+                argumentos
+            ),
+        )
+
+        if clave in vistos:
+            continue
+
+        vistos.add(
+            clave
+        )
+
+        try:
+            resultado = convertir_resultado(
+                sesion.execute(
+                    nombre,
+                    arguments=argumentos,
+                )
+            )
+
+            if resultado_tiene_error(
+                resultado
+            ):
+                errores.append({
+                    "tool": nombre,
+                    "resultado": resultado,
+                })
+                continue
+
+            message_id = buscar_valor(
+                resultado,
+                [
+                    "message_id",
+                    "messageId",
+                    "id",
+                ],
+            )
+
+            return {
+                "ok": True,
+                "estado": "borrador_enviado",
+                "draft_id": draft_id,
+                "message_id": (
+                    message_id
+                    or ""
+                ),
+                "tool": nombre,
+            }
+
+        except Exception as error:
+            errores.append({
+                "tool": nombre,
+                "error": str(
+                    error
+                ),
+            })
+
+    return {
+        "ok": False,
+        "estado": "no_se_pudo_enviar_borrador",
+        "draft_id": draft_id,
+        "errores": errores,
+    }
+

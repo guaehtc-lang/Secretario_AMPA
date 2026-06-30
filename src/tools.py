@@ -35,8 +35,14 @@ tools = {
     "crear_borrador": {
         "area": "gmail",
         "descripcion": (
-            "Crea un borrador. "
-            "Nunca envía el correo."
+            "Crea un borrador sin enviarlo."
+        ),
+    },
+    "enviar_borrador": {
+        "area": "gmail",
+        "descripcion": (
+            "Envía un borrador únicamente "
+            "tras autorización en Telegram."
         ),
     },
     "marcar_como_leido": {
@@ -67,17 +73,101 @@ tools = {
             "cuando la reunión está confirmada."
         ),
     },
-    "crear_resumen_whatsapp": {
+    "crear_resumen_telegram": {
         "area": "llm",
         "descripcion": (
             "Resume una urgencia "
-            "en un máximo de cinco líneas."
+            "en un máximo de dos líneas."
         ),
     },
-    "enviar_whatsapp": {
-        "area": "whatsapp",
+    "enviar_alerta_telegram": {
+        "area": "telegram",
         "descripcion": (
-            "Registra una alerta simulada."
+            "Envía la alerta y abre "
+            "el flujo de autorización."
+        ),
+    },
+    "enviar_borrador_telegram": {
+        "area": "telegram",
+        "descripcion": (
+            "Envía el borrador y solicita "
+            "la autorización final."
+        ),
+    },
+    "enviar_confirmacion_telegram": {
+        "area": "telegram",
+        "descripcion": (
+            "Confirma por Telegram "
+            "el resultado de la decisión."
+        ),
+    },
+    "obtener_actualizaciones": {
+        "area": "telegram",
+        "descripcion": (
+            "Consulta las pulsaciones "
+            "pendientes del bot."
+        ),
+    },
+    "callback_autorizado": {
+        "area": "telegram",
+        "descripcion": (
+            "Comprueba que el botón procede "
+            "del chat autorizado."
+        ),
+    },
+    "datos_callback": {
+        "area": "telegram",
+        "descripcion": (
+            "Extrae la acción y el código "
+            "de una pulsación."
+        ),
+    },
+    "responder_callback": {
+        "area": "telegram",
+        "descripcion": (
+            "Cierra la espera visual "
+            "del botón pulsado."
+        ),
+    },
+    "retirar_botones": {
+        "area": "telegram",
+        "descripcion": (
+            "Retira botones ya utilizados."
+        ),
+    },
+    "obtener_alerta_por_codigo": {
+        "area": "memoria",
+        "descripcion": (
+            "Busca la urgencia pendiente "
+            "relacionada con un botón."
+        ),
+    },
+    "actualizar_alerta": {
+        "area": "memoria",
+        "descripcion": (
+            "Actualiza el estado persistente "
+            "de una urgencia."
+        ),
+    },
+    "obtener_estado": {
+        "area": "memoria",
+        "descripcion": (
+            "Obtiene el offset persistente "
+            "de Telegram."
+        ),
+    },
+    "guardar_estado": {
+        "area": "memoria",
+        "descripcion": (
+            "Guarda el offset persistente "
+            "de Telegram."
+        ),
+    },
+    "obtener_registro_correo": {
+        "area": "memoria",
+        "descripcion": (
+            "Obtiene el estado guardado "
+            "de un correo."
         ),
     },
     "registrar_correo": {

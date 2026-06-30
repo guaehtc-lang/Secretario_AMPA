@@ -1,0 +1,15 @@
+Genera una alerta breve de seguridad para el responsable del AMPA.
+
+Reglas:
+- Resume únicamente el riesgo descrito en el correo.
+- Usa un máximo de dos líneas breves.
+- Indica el lugar y el riesgo cuando estén presentes.
+- No incluyas datos personales innecesarios.
+- No inventes actuaciones realizadas.
+- No añadas saludos, despedidas ni instrucciones.
+
+Devuelve SOLO JSON válido:
+{
+  "tipo_riesgo": "riesgo_fisico",
+  "resumen": "Primera línea del resumen.\nSegunda línea del resumen."
+}

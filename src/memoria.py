@@ -1,4 +1,4 @@
-"""Memoria SQLite sencilla para evitar duplicados."""
+"""Memoria SQLite para correos, alertas y autorizaciones."""
 
 import json
 import sqlite3
@@ -10,6 +10,11 @@ from src.parametros import DATABASE_PATH
 ESTADO_PENDIENTE_LECTURA = (
     "pendiente_marcar_leido"
 )
+
+ESTADOS_TELEGRAM_PENDIENTES = {
+    "esperando_revision_borrador",
+    "esperando_autorizacion_envio",
+}
 
 
 def conectar():
@@ -26,7 +31,7 @@ def conectar():
 
 
 def inicializar_memoria():
-    """Crea las tablas necesarias."""
+    """Crea las tablas necesarias sin borrar datos."""
 
     conexion = conectar()
 
@@ -60,8 +65,82 @@ def inicializar_memoria():
         """
     )
 
+    conexion.execute(
+        """
+        CREATE TABLE IF NOT EXISTS estado (
+            clave TEXT PRIMARY KEY,
+            valor TEXT
+        )
+        """
+    )
+
     conexion.commit()
     conexion.close()
+
+
+def obtener_estado(
+    clave,
+    valor_defecto="",
+):
+    """Obtiene un valor interno persistente."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    fila = conexion.execute(
+        """
+        SELECT valor
+        FROM estado
+        WHERE clave = ?
+        """,
+        (
+            clave,
+        ),
+    ).fetchone()
+
+    conexion.close()
+
+    if not fila:
+        return valor_defecto
+
+    return fila[0]
+
+
+def guardar_estado(
+    clave,
+    valor,
+):
+    """Guarda un valor interno persistente."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    conexion.execute(
+        """
+        INSERT OR REPLACE INTO estado (
+            clave,
+            valor
+        )
+        VALUES (?, ?)
+        """,
+        (
+            clave,
+            str(
+                valor
+            ),
+        ),
+    )
+
+    conexion.commit()
+    conexion.close()
+
+    return {
+        "ok": True,
+        "clave": clave,
+        "valor": str(
+            valor
+        ),
+    }
 
 
 def obtener_ids_procesados():
@@ -222,25 +301,11 @@ def registrar_correo(
 def alerta_ya_enviada(
     message_id,
 ):
-    """Comprueba si una urgencia ya generó alerta."""
+    """Comprueba si una urgencia ya generó una alerta."""
 
-    inicializar_memoria()
-    conexion = conectar()
-
-    fila = conexion.execute(
-        """
-        SELECT message_id
-        FROM alertas
-        WHERE message_id = ?
-        """,
-        (
-            message_id,
-        ),
-    ).fetchone()
-
-    conexion.close()
-
-    return fila is not None
+    return obtener_alerta(
+        message_id
+    ) is not None
 
 
 def registrar_alerta(
@@ -250,7 +315,7 @@ def registrar_alerta(
     modo,
     resultado,
 ):
-    """Registra una alerta de WhatsApp."""
+    """Guarda el estado completo de una alerta."""
 
     inicializar_memoria()
     conexion = conectar()
@@ -285,6 +350,176 @@ def registrar_alerta(
 
     conexion.commit()
     conexion.close()
+
+    return {
+        "ok": True,
+        "message_id": message_id,
+        "estado": resultado.get(
+            "estado",
+            "",
+        ),
+    }
+
+
+def obtener_alerta(
+    message_id,
+):
+    """Obtiene una alerta a partir del correo."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    fila = conexion.execute(
+        """
+        SELECT
+            message_id,
+            fecha_envio,
+            tipo_riesgo,
+            resumen,
+            modo,
+            resultado
+        FROM alertas
+        WHERE message_id = ?
+        """,
+        (
+            message_id,
+        ),
+    ).fetchone()
+
+    conexion.close()
+
+    if not fila:
+        return None
+
+    try:
+        resultado = json.loads(
+            fila[5]
+            or "{}"
+        )
+    except json.JSONDecodeError:
+        resultado = {}
+
+    return {
+        "message_id": fila[0],
+        "fecha_envio": fila[1],
+        "tipo_riesgo": fila[2] or "",
+        "resumen": fila[3] or "",
+        "modo": fila[4] or "",
+        "resultado": resultado,
+    }
+
+
+def actualizar_alerta(
+    message_id,
+    estado,
+    cambios=None,
+):
+    """Actualiza una alerta sin perder sus datos."""
+
+    alerta = obtener_alerta(
+        message_id
+    )
+
+    if not alerta:
+        return {
+            "ok": False,
+            "estado": "alerta_no_encontrada",
+        }
+
+    resultado = alerta[
+        "resultado"
+    ].copy()
+
+    resultado.update(
+        cambios
+        or {}
+    )
+    resultado[
+        "estado"
+    ] = estado
+
+    return registrar_alerta(
+        message_id=message_id,
+        tipo_riesgo=alerta[
+            "tipo_riesgo"
+        ],
+        resumen=alerta[
+            "resumen"
+        ],
+        modo=alerta[
+            "modo"
+        ],
+        resultado=resultado,
+    )
+
+
+def obtener_alertas_pendientes():
+    """Devuelve alertas que esperan una decisión."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    filas = conexion.execute(
+        """
+        SELECT message_id
+        FROM alertas
+        ORDER BY fecha_envio ASC
+        """
+    ).fetchall()
+
+    conexion.close()
+
+    pendientes = []
+
+    for fila in filas:
+        alerta = obtener_alerta(
+            fila[0]
+        )
+
+        if not alerta:
+            continue
+
+        estado = alerta[
+            "resultado"
+        ].get(
+            "estado",
+            "",
+        )
+
+        if estado in ESTADOS_TELEGRAM_PENDIENTES:
+            pendientes.append(
+                alerta
+            )
+
+    return pendientes
+
+
+def obtener_alerta_por_codigo(
+    codigo,
+):
+    """Busca una alerta pendiente mediante su código."""
+
+    codigo = (
+        codigo
+        or ""
+    ).strip().upper()
+
+    for alerta in obtener_alertas_pendientes():
+        codigo_alerta = (
+            alerta[
+                "resultado"
+            ].get(
+                "codigo",
+                "",
+            )
+            .strip()
+            .upper()
+        )
+
+        if codigo_alerta == codigo:
+            return alerta
+
+    return None
 
 
 def obtener_pendientes_revision():

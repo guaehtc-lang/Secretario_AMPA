@@ -25,6 +25,14 @@ Reglas para reuniones:
 - Finaliza solicitando una confirmación expresa de la fecha y hora propuestas.
 - Si no hay ninguna opción disponible, solicita al remitente nuevas alternativas.
 
+Reglas para urgencias de seguridad:
+- Confirma únicamente que el aviso ha sido recibido.
+- No afirmes que el problema está resuelto.
+- No inventes que se ha avisado a una persona, empresa o autoridad.
+- Indica que la incidencia será trasladada para su revisión urgente.
+- Cuando proceda, recomienda de forma prudente evitar la zona de riesgo.
+- Mantén un tono serio, breve y no alarmista.
+
 Devuelve SOLO JSON válido:
 {
   "asunto": "Re: asunto original",

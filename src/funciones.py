@@ -8,19 +8,36 @@ from src.calendar import (
 )
 from src.gmail import (
     crear_borrador,
+    enviar_borrador,
     limpiar_texto,
     marcar_como_leido,
     obtener_correos_no_leidos,
 )
 from src.llm import preguntar_json
-from src.memoria import registrar_correo
+from src.memoria import (
+    actualizar_alerta,
+    guardar_estado,
+    obtener_alerta_por_codigo,
+    obtener_estado,
+    obtener_registro_correo,
+    registrar_correo,
+)
 from src.parametros import (
     DEFAULT_MEETING_MINUTES,
 )
 from src.rag import (
     consultar_antecedentes_gmail,
 )
-from src.whatsapp import enviar_whatsapp
+from src.telegram import (
+    callback_autorizado,
+    datos_callback,
+    enviar_alerta_telegram,
+    enviar_borrador_telegram,
+    enviar_confirmacion_telegram,
+    obtener_actualizaciones,
+    responder_callback,
+    retirar_botones,
+)
 
 
 CLASIFICACIONES = {
@@ -382,11 +399,11 @@ def extraer_reunion(
     }
 
 
-def crear_resumen_whatsapp(
+def crear_resumen_telegram(
     correo,
     prompts,
 ):
-    """Genera un resumen máximo de cinco líneas."""
+    """Genera un resumen máximo de dos líneas."""
 
     prompt = (
         prompts[
@@ -394,7 +411,7 @@ def crear_resumen_whatsapp(
         ]
         + "\n\n"
         + prompts[
-            "whatsapp"
+            "telegram"
         ]
     )
 
@@ -441,9 +458,11 @@ def crear_resumen_whatsapp(
         )
     ).strip()
 
-    lineas = resumen.splitlines()[
-        :5
-    ]
+    lineas = [
+        linea.strip()
+        for linea in resumen.splitlines()
+        if linea.strip()
+    ][:2]
 
     return {
         "tipo_riesgo": (
@@ -474,6 +493,9 @@ funciones = {
     "crear_borrador": (
         crear_borrador
     ),
+    "enviar_borrador": (
+        enviar_borrador
+    ),
     "marcar_como_leido": (
         marcar_como_leido
     ),
@@ -486,11 +508,47 @@ funciones = {
     "crear_evento_reunion": (
         crear_evento_reunion
     ),
-    "crear_resumen_whatsapp": (
-        crear_resumen_whatsapp
+    "crear_resumen_telegram": (
+        crear_resumen_telegram
     ),
-    "enviar_whatsapp": (
-        enviar_whatsapp
+    "enviar_alerta_telegram": (
+        enviar_alerta_telegram
+    ),
+    "enviar_borrador_telegram": (
+        enviar_borrador_telegram
+    ),
+    "enviar_confirmacion_telegram": (
+        enviar_confirmacion_telegram
+    ),
+    "obtener_actualizaciones": (
+        obtener_actualizaciones
+    ),
+    "callback_autorizado": (
+        callback_autorizado
+    ),
+    "datos_callback": (
+        datos_callback
+    ),
+    "responder_callback": (
+        responder_callback
+    ),
+    "retirar_botones": (
+        retirar_botones
+    ),
+    "obtener_alerta_por_codigo": (
+        obtener_alerta_por_codigo
+    ),
+    "actualizar_alerta": (
+        actualizar_alerta
+    ),
+    "obtener_estado": (
+        obtener_estado
+    ),
+    "guardar_estado": (
+        guardar_estado
+    ),
+    "obtener_registro_correo": (
+        obtener_registro_correo
     ),
     "registrar_correo": (
         registrar_correo

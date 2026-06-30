@@ -119,19 +119,34 @@ RAG_MIN_SIMILARITY = float(
     )
 )
 
-# WhatsApp
-WHATSAPP_MODE = os.getenv(
-    "WHATSAPP_MODE",
-    "simulado",
-).lower()
-WHATSAPP_RECIPIENTS = [
-    elemento.strip()
-    for elemento in os.getenv(
-        "WHATSAPP_RECIPIENTS",
-        "Presidencia,Secretaría",
-    ).split(",")
-    if elemento.strip()
-]
+# Telegram
+TELEGRAM_ENABLED = (
+    os.getenv(
+        "TELEGRAM_ENABLED",
+        "true",
+    ).lower()
+    == "true"
+)
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN",
+    "",
+)
+TELEGRAM_CHAT_ID = os.getenv(
+    "TELEGRAM_CHAT_ID",
+    "",
+)
+TELEGRAM_POLLING_TIMEOUT = int(
+    os.getenv(
+        "TELEGRAM_POLLING_TIMEOUT",
+        "5",
+    )
+)
+TELEGRAM_REQUEST_TIMEOUT = int(
+    os.getenv(
+        "TELEGRAM_REQUEST_TIMEOUT",
+        "15",
+    )
+)
 
 # Servicio
 ORDINARY_START_HOUR = int(
@@ -170,10 +185,3 @@ DATABASE_PATH = Path(
 RAG_PATH = Path(
     "data/rag/correos_historicos.jsonl"
 )
-
-
-if ALLOW_EMAIL_SEND:
-    raise ValueError(
-        "ALLOW_EMAIL_SEND debe permanecer en false."
-    )
-

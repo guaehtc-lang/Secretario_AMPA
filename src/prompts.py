@@ -8,7 +8,7 @@ ARCHIVOS_PROMPT = {
     "clasificacion": "prompt_clasificacion.txt",
     "redaccion": "prompt_redaccion.txt",
     "reunion": "prompt_reunion.txt",
-    "whatsapp": "prompt_whatsapp.txt",
+    "telegram": "prompt_telegram.txt",
 }
 
 
