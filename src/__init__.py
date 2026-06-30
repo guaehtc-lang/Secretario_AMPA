@@ -1,1 +1,1 @@
-"""Código principal del proyecto Secretario AMPA."""
+"""Paquete del agente Secretario AMPA."""

@@ -1,71 +1,126 @@
 # Secretario AMPA
 
-Versión simplificada para probar directamente el agente con una cuenta Gmail real de pruebas.
+Proyecto reorganizado con la estructura de function calling vista
+en clase.
 
-## Cuenta prevista
+## Idea principal
 
-`agentesectretarioampa@gmail.com`
+`main.py` solo reúne las piezas:
 
-La aplicación no utiliza la contraseña. La autorización se realiza mediante OAuth desde el navegador.
+```python
+mensajes = crear_mensajes()
+
+print(
+    ejecutar_agente(
+        mensajes,
+        tools,
+        funciones,
+    )
+)
+```
+
+Cada parte se modifica en un archivo independiente:
+
+| Necesidad | Archivo |
+|---|---|
+| Cambiar comportamiento del agente | `prompts/prompt_agente.txt` |
+| Cambiar modelo, temperatura o límites | `src/parametros.py` |
+| Añadir o modificar tools | `src/tools.py` |
+| Registrar funciones disponibles | `src/funciones.py` |
+| Cambiar el bucle del agente | `src/agente.py` |
+| Cambiar Gmail | `src/gmail.py` |
+| Cambiar Calendar | `src/calendar.py` |
+| Cambiar el RAG | `src/rag.py` |
+| Cambiar la memoria | `src/memoria.py` |
 
 ## Estructura
 
 ```text
-Secretario_AMPA/
-├── notebooks/
-│   ├── 01_configuracion_y_primera_llamada.ipynb
-│   ├── 02_prompts_y_clasificacion.ipynb
-│   └── 03_conexion_gmail_y_prueba_agente.ipynb
-├── src/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── google_oauth.py
-│   ├── gmail_client.py
-│   ├── agente.py
-│   └── memoria.py
-├── prompts/
-│   └── system_prompt_secretario.md
-├── main.py
-├── .env
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── Diseno_Tecnico_Agente_Secretario_AMPA.md
+main.py
+   ├── prompt.py ── prompts/prompt_agente.txt
+   ├── parametros.py ── .env
+   ├── tools.py
+   ├── funciones.py
+   │     ├── gmail.py
+   │     ├── calendar.py
+   │     ├── rag.py
+   │     └── memoria.py
+   └── agente.py
 ```
 
-## Primera prueba
+## Primera configuración
 
-1. Completar `LLM_API_KEY` en `.env`.
-2. Crear un proyecto en Google Cloud.
-3. Activar Gmail API.
-4. Crear credenciales OAuth para una aplicación de escritorio.
-5. Descargar el archivo y guardarlo como `credentials.json`.
-6. Ejecutar:
+1. Copia `.env.example` como `.env`.
+2. Añade `LLM_API_KEY` y `COMPOSIO_API_KEY`.
+3. Instala dependencias:
 
 ```bash
 pip install -r requirements.txt
-python main.py --probar-conexion
-python main.py --revisar --limite 3
 ```
 
-## Seguridad inicial
+4. Autoriza Google:
 
-```env
-GMAIL_ACCESS_MODE=lectura
-ALLOW_EMAIL_SEND=false
-ALLOW_CREATE_DRAFTS=false
-ALLOW_MODIFY_LABELS=false
+```bash
+python autorizar_google.py
 ```
 
-La primera prueba solo lee y analiza. No crea borradores, no cambia etiquetas y no envía correos.
+5. Carga el histórico del último año:
 
-## Cambio de modelo o de organización
+```bash
+python actualizar_rag.py
+```
 
-El núcleo está separado del prompt y de la configuración. Para adaptarlo a otra organización se modifican principalmente:
+6. Ejecuta un ciclo:
 
-- `prompts/system_prompt_secretario.md`
-- `.env`
-- reglas de clasificación y actuación
-- modelo y proveedor LLM
+```bash
+python main.py
+```
 
-El envío automático de correo permanece prohibido.
+7. Servicio horario:
+
+```bash
+python servicio.py
+```
+
+## Cómo ampliar el agente
+
+Para añadir una herramienta:
+
+1. Crea su función en el archivo del área correspondiente.
+2. Añade su descripción en `src/tools.py`.
+3. Registra la función en `src/funciones.py`.
+4. Añade al prompt una regla únicamente si el agente necesita saber
+   cuándo utilizarla.
+
+No hay que modificar `main.py` ni el bucle general del agente.
+
+## RAG
+
+El histórico se guarda localmente en:
+
+```text
+data/rag/correos_historicos.jsonl
+```
+
+El número de años se cambia en `.env` o `src/parametros.py`:
+
+```text
+RAG_ANIOS_HISTORIAL=1
+```
+
+Para pasar a cinco años:
+
+```text
+RAG_ANIOS_HISTORIAL=5
+```
+
+Después se vuelve a ejecutar `actualizar_rag.py`.
+
+## Seguridad actual
+
+- No existe ninguna tool para enviar correos.
+- Gmail solo puede leer y crear borradores.
+- Calendar puede consultar disponibilidad y enviar invitaciones
+  con Sí, No y Quizás.
+- Los eventos se vuelven a comprobar antes de crearse.
+- SQLite evita reprocesar correos y duplicar eventos.

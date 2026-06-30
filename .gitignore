@@ -1,26 +1,6 @@
-# Secretos y credenciales
 .env
-credentials.json
-token*.json
-client_secret*.json
-
-# Datos locales
-data/*.db
-data/*.sqlite
-logs/
-*.log
-
-# Python
 __pycache__/
-*.py[cod]
-.venv/
-venv/
-
-# Jupyter
+*.pyc
 .ipynb_checkpoints/
-
-# Editores y sistema
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+data/memoria/*.db
+data/rag/*.jsonl

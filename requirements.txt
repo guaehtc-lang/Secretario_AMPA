@@ -1,5 +1,5 @@
-openai
-python-dotenv
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
+openai==2.44.0
+python-dotenv==1.2.2
+composio==0.17.1
+composio-openai==0.17.1
+scikit-learn>=1.4
