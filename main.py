@@ -5,7 +5,7 @@ import json
 from src.agente import ejecutar_agente
 from src.funciones import funciones
 from src.memoria import inicializar_memoria
-from src.prompt import cargar_prompts
+from src.prompts import cargar_prompts
 from src.tools import tools
 
 

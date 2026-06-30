@@ -2,7 +2,7 @@
 
 from composio import SESSION_PRESET_DIRECT_TOOLS
 
-from src.composio_cliente import crear_cliente_composio
+from src.gmail import crear_cliente_composio
 from src.parametros import COMPOSIO_USER_ID
 
 
@@ -12,30 +12,36 @@ TOOLKITS = [
 ]
 
 
-composio = crear_cliente_composio()
+def autorizar_google():
+    """Autoriza las conexiones necesarias."""
 
-sesion = composio.create(
-    user_id=COMPOSIO_USER_ID,
-    toolkits=TOOLKITS,
-    session_preset=SESSION_PRESET_DIRECT_TOOLS,
-)
+    composio = crear_cliente_composio()
 
-
-for toolkit in TOOLKITS:
-    cuentas = composio.connected_accounts.list(
-        user_ids=[COMPOSIO_USER_ID],
-        toolkit_slugs=[toolkit],
-        statuses=["ACTIVE"],
+    sesion = composio.create(
+        user_id=COMPOSIO_USER_ID,
+        toolkits=TOOLKITS,
+        session_preset=SESSION_PRESET_DIRECT_TOOLS,
     )
 
-    if cuentas.items:
-        print(toolkit, "ya está conectado.")
-        continue
+    for toolkit in TOOLKITS:
+        cuentas = composio.connected_accounts.list(
+            user_ids=[COMPOSIO_USER_ID],
+            toolkit_slugs=[toolkit],
+            statuses=["ACTIVE"],
+        )
 
-    solicitud = sesion.authorize(toolkit)
+        if cuentas.items:
+            print(toolkit, "ya está conectado.")
+            continue
 
-    print("\nAutoriza", toolkit, "en este enlace:")
-    print(solicitud.redirect_url)
+        solicitud = sesion.authorize(toolkit)
 
-    solicitud.wait_for_connection(timeout=300)
-    print(toolkit, "conectado correctamente.")
+        print("\nAutoriza", toolkit, "en este enlace:")
+        print(solicitud.redirect_url)
+
+        solicitud.wait_for_connection(timeout=300)
+        print(toolkit, "conectado correctamente.")
+
+
+if __name__ == "__main__":
+    autorizar_google()

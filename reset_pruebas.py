@@ -1,14 +1,15 @@
-"""Borra únicamente los datos locales de pruebas."""
+"""Reinicia únicamente la memoria local de pruebas.
 
-from src.parametros import (
-    DATABASE_PATH,
-    WHATSAPP_LOG_PATH,
-)
+Archivo temporal: eliminar al cerrar la fase de pruebas.
+"""
+
+from src.memoria import inicializar_memoria
+from src.parametros import DATABASE_PATH
 
 
-for ruta in [DATABASE_PATH, WHATSAPP_LOG_PATH]:
-    if ruta.exists():
-        ruta.unlink()
-        print("Eliminado:", ruta)
+if DATABASE_PATH.exists():
+    DATABASE_PATH.unlink()
+    print("Eliminado:", DATABASE_PATH)
 
-print("Datos locales de prueba reiniciados.")
+inicializar_memoria()
+print("Base de datos de pruebas reiniciada.")

@@ -19,8 +19,9 @@ def cargar_prompts():
 
     for nombre, archivo in ARCHIVOS_PROMPT.items():
         ruta = PROMPTS_DIR / archivo
+
         prompts[nombre] = ruta.read_text(
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
     return prompts

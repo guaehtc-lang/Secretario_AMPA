@@ -1,15 +1,21 @@
 """Consulta de disponibilidad en Google Calendar."""
 
-from datetime import datetime, time, timedelta
+from datetime import (
+    datetime,
+    time,
+    timedelta,
+)
 from zoneinfo import ZoneInfo
 
-from src.composio_cliente import obtener_sesion_google
+from src.gmail import (
+    convertir_resultado,
+    obtener_sesion_google,
+)
 from src.parametros import (
     CALENDAR_ID,
     DEFAULT_MEETING_MINUTES,
     TIMEZONE,
 )
-from src.utilidades import convertir_resultado
 
 
 DIAS_SEMANA = {
@@ -25,54 +31,107 @@ DIAS_SEMANA = {
 }
 
 
-def proxima_fecha(dia, hora_texto):
-    """Convierte un día de la semana en la siguiente fecha."""
+def proxima_fecha(
+    dia,
+    hora_texto,
+):
+    """Convierte un día en la siguiente fecha."""
 
     numero_dia = DIAS_SEMANA.get(
-        (dia or "").strip().lower()
+        (
+            dia
+            or ""
+        ).strip().lower()
     )
 
     if numero_dia is None:
         return None
 
-    ahora = datetime.now(ZoneInfo(TIMEZONE))
-    diferencia = (numero_dia - ahora.weekday()) % 7
+    ahora = datetime.now(
+        ZoneInfo(
+            TIMEZONE
+        )
+    )
+
+    diferencia = (
+        numero_dia
+        - ahora.weekday()
+    ) % 7
 
     if diferencia == 0:
-        hora, minuto = map(int, hora_texto.split(":"))
+        hora, minuto = map(
+            int,
+            hora_texto.split(
+                ":"
+            ),
+        )
+
         propuesta = ahora.replace(
             hour=hora,
             minute=minuto,
             second=0,
             microsecond=0,
         )
+
         if propuesta <= ahora:
             diferencia = 7
 
-    return (ahora + timedelta(days=diferencia)).date()
+    return (
+        ahora
+        + timedelta(
+            days=diferencia
+        )
+    ).date()
 
 
-def normalizar_opciones(opciones):
-    """Valida y completa las opciones extraídas por el LLM."""
+def normalizar_opciones(
+    opciones,
+):
+    """Valida las opciones extraídas por el LLM."""
 
     normalizadas = []
 
-    if not isinstance(opciones, list):
+    if not isinstance(
+        opciones,
+        list,
+    ):
         return normalizadas
 
     for opcion in opciones:
-        if not isinstance(opcion, dict):
+        if not isinstance(
+            opcion,
+            dict,
+        ):
             continue
 
-        hora = (opcion.get("hora") or "").strip()
+        hora = (
+            opcion.get(
+                "hora"
+            )
+            or ""
+        ).strip()
 
         try:
-            datetime.strptime(hora, "%H:%M")
+            datetime.strptime(
+                hora,
+                "%H:%M",
+            )
         except ValueError:
             continue
 
-        dia = (opcion.get("dia") or "").strip()
-        fecha_texto = (opcion.get("fecha") or "").strip()
+        dia = (
+            opcion.get(
+                "dia"
+            )
+            or ""
+        ).strip()
+
+        fecha_texto = (
+            opcion.get(
+                "fecha"
+            )
+            or ""
+        ).strip()
 
         if fecha_texto:
             try:
@@ -82,8 +141,12 @@ def normalizar_opciones(opciones):
                 ).date()
             except ValueError:
                 continue
+
         else:
-            fecha = proxima_fecha(dia, hora)
+            fecha = proxima_fecha(
+                dia,
+                hora,
+            )
 
         if not fecha:
             continue
@@ -99,11 +162,15 @@ def normalizar_opciones(opciones):
 
 def consultar_disponibilidad(
     opciones,
-    duracion_minutos=DEFAULT_MEETING_MINUTES,
+    duracion_minutos=(
+        DEFAULT_MEETING_MINUTES
+    ),
 ):
-    """Consulta cada opción en Google Calendar."""
+    """Consulta cada opción en Calendar."""
 
-    opciones = normalizar_opciones(opciones)
+    opciones = normalizar_opciones(
+        opciones
+    )
 
     if not opciones:
         return {
@@ -113,24 +180,37 @@ def consultar_disponibilidad(
         }
 
     sesion = obtener_sesion_google()
-    zona = ZoneInfo(TIMEZONE)
+    zona = ZoneInfo(
+        TIMEZONE
+    )
     resultados = []
 
     for opcion in opciones:
         hora, minuto = map(
             int,
-            opcion["hora"].split(":"),
+            opcion[
+                "hora"
+            ].split(
+                ":"
+            ),
         )
+
         fecha = datetime.strptime(
-            opcion["fecha"],
+            opcion[
+                "fecha"
+            ],
             "%Y-%m-%d",
         ).date()
 
         inicio = datetime.combine(
             fecha,
-            time(hora, minuto),
+            time(
+                hora,
+                minuto,
+            ),
             tzinfo=zona,
         )
+
         fin = inicio + timedelta(
             minutes=duracion_minutos
         )
@@ -139,9 +219,15 @@ def consultar_disponibilidad(
             sesion.execute(
                 "GOOGLECALENDAR_FIND_FREE_SLOTS",
                 arguments={
-                    "items": [CALENDAR_ID],
-                    "time_min": inicio.isoformat(),
-                    "time_max": fin.isoformat(),
+                    "items": [
+                        CALENDAR_ID
+                    ],
+                    "time_min": (
+                        inicio.isoformat()
+                    ),
+                    "time_max": (
+                        fin.isoformat()
+                    ),
                     "timezone": TIMEZONE,
                 },
             )
@@ -149,21 +235,43 @@ def consultar_disponibilidad(
 
         libres = (
             respuesta
-            .get("data", {})
-            .get("calendars", {})
-            .get(CALENDAR_ID, {})
-            .get("free", [])
+            .get(
+                "data",
+                {},
+            )
+            .get(
+                "calendars",
+                {},
+            )
+            .get(
+                CALENDAR_ID,
+                {},
+            )
+            .get(
+                "free",
+                [],
+            )
         )
 
         resultados.append({
             **opcion,
-            "hora_hasta": fin.strftime("%H:%M"),
-            "inicio_iso": inicio.isoformat(),
-            "disponible": bool(libres),
+            "hora_hasta": (
+                fin.strftime(
+                    "%H:%M"
+                )
+            ),
+            "inicio_iso": (
+                inicio.isoformat()
+            ),
+            "disponible": bool(
+                libres
+            ),
         })
 
     return {
         "ok": True,
-        "estado": "disponibilidad_consultada",
+        "estado": (
+            "disponibilidad_consultada"
+        ),
         "opciones": resultados,
     }

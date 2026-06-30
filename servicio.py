@@ -1,5 +1,6 @@
 """Ejecuta el agente una vez por hora dentro del horario."""
 
+import json
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -13,20 +14,46 @@ from src.parametros import (
 )
 
 
-ultima_hora = None
+def ejecutar_servicio():
+    """Mantiene activo el ciclo horario."""
 
-while True:
-    ahora = datetime.now(ZoneInfo(TIMEZONE))
-    hora_actual = ahora.strftime("%Y-%m-%d %H")
+    ultima_hora = None
 
-    dentro_horario = (
-        ORDINARY_START_HOUR
-        <= ahora.hour
-        <= ORDINARY_END_HOUR
-    )
+    while True:
+        ahora = datetime.now(
+            ZoneInfo(TIMEZONE)
+        )
+        hora_actual = ahora.strftime(
+            "%Y-%m-%d %H"
+        )
 
-    if dentro_horario and hora_actual != ultima_hora:
-        print(ejecutar_ciclo())
-        ultima_hora = hora_actual
+        dentro_horario = (
+            ORDINARY_START_HOUR
+            <= ahora.hour
+            <= ORDINARY_END_HOUR
+        )
 
-    time.sleep(SCHEDULER_CHECK_SECONDS)
+        if (
+            dentro_horario
+            and hora_actual != ultima_hora
+        ):
+            resultado = ejecutar_ciclo()
+
+            print(
+                json.dumps(
+                    resultado,
+                    ensure_ascii=False,
+                    indent=2,
+                    default=str,
+                )
+            )
+
+            ultima_hora = hora_actual
+
+        time.sleep(
+            SCHEDULER_CHECK_SECONDS
+        )
+
+
+if __name__ == "__main__":
+    ejecutar_servicio()

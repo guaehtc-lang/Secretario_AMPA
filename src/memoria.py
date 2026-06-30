@@ -7,6 +7,11 @@ from datetime import datetime
 from src.parametros import DATABASE_PATH
 
 
+ESTADO_PENDIENTE_LECTURA = (
+    "pendiente_marcar_leido"
+)
+
+
 def conectar():
     """Abre la base de datos local."""
 
@@ -15,7 +20,9 @@ def conectar():
         exist_ok=True,
     )
 
-    return sqlite3.connect(DATABASE_PATH)
+    return sqlite3.connect(
+        DATABASE_PATH
+    )
 
 
 def inicializar_memoria():
@@ -58,18 +65,84 @@ def inicializar_memoria():
 
 
 def obtener_ids_procesados():
-    """Devuelve los identificadores ya procesados."""
+    """Devuelve los correos que no necesitan reintento."""
 
     inicializar_memoria()
     conexion = conectar()
 
     filas = conexion.execute(
-        "SELECT message_id FROM correos"
+        """
+        SELECT message_id
+        FROM correos
+        WHERE estado_gmail != ?
+        """,
+        (
+            ESTADO_PENDIENTE_LECTURA,
+        ),
     ).fetchall()
 
     conexion.close()
 
-    return [fila[0] for fila in filas]
+    return [
+        fila[0]
+        for fila in filas
+    ]
+
+
+def obtener_registro_correo(
+    message_id,
+):
+    """Obtiene el último estado guardado de un correo."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    fila = conexion.execute(
+        """
+        SELECT
+            message_id,
+            clasificacion,
+            resumen,
+            accion,
+            estado_gmail,
+            draft_id,
+            requiere_revision,
+            error,
+            resultado
+        FROM correos
+        WHERE message_id = ?
+        """,
+        (
+            message_id,
+        ),
+    ).fetchone()
+
+    conexion.close()
+
+    if not fila:
+        return None
+
+    try:
+        resultado = json.loads(
+            fila[8]
+            or "{}"
+        )
+    except json.JSONDecodeError:
+        resultado = {}
+
+    return {
+        "message_id": fila[0],
+        "clasificacion": fila[1],
+        "resumen": fila[2] or "",
+        "accion": fila[3] or "",
+        "estado_gmail": fila[4] or "",
+        "draft_id": fila[5] or "",
+        "requiere_revision": bool(
+            fila[6]
+        ),
+        "error": fila[7] or "",
+        "resultado": resultado,
+    }
 
 
 def registrar_correo(
@@ -83,7 +156,7 @@ def registrar_correo(
     error="",
     resultado=None,
 ):
-    """Guarda el resultado final de un correo."""
+    """Guarda el resultado final o parcial de un correo."""
 
     inicializar_memoria()
     conexion = conectar()
@@ -109,14 +182,18 @@ def registrar_correo(
         (
             message_id,
             datetime.now().isoformat(
-                timespec="seconds"
+                timespec="seconds",
             ),
             clasificacion,
             resumen,
             accion,
             estado_gmail,
             draft_id,
-            int(bool(requiere_revision)),
+            int(
+                bool(
+                    requiere_revision
+                )
+            ),
             error,
             json.dumps(
                 datos,
@@ -135,13 +212,16 @@ def registrar_correo(
         "clasificacion": clasificacion,
         "accion": accion,
         "estado_gmail": estado_gmail,
+        "draft_id": draft_id,
         "requiere_revision": bool(
             requiere_revision
         ),
     }
 
 
-def alerta_ya_enviada(message_id):
+def alerta_ya_enviada(
+    message_id,
+):
     """Comprueba si una urgencia ya generó alerta."""
 
     inicializar_memoria()
@@ -153,7 +233,9 @@ def alerta_ya_enviada(message_id):
         FROM alertas
         WHERE message_id = ?
         """,
-        (message_id,),
+        (
+            message_id,
+        ),
     ).fetchone()
 
     conexion.close()
@@ -188,7 +270,7 @@ def registrar_alerta(
         (
             message_id,
             datetime.now().isoformat(
-                timespec="seconds"
+                timespec="seconds",
             ),
             tipo_riesgo,
             resumen,
@@ -203,3 +285,29 @@ def registrar_alerta(
 
     conexion.commit()
     conexion.close()
+
+
+def obtener_pendientes_revision():
+    """Devuelve los correos pendientes de revisión humana."""
+
+    inicializar_memoria()
+    conexion = conectar()
+
+    filas = conexion.execute(
+        """
+        SELECT
+            message_id,
+            clasificacion,
+            resumen,
+            accion,
+            estado_gmail,
+            error
+        FROM correos
+        WHERE requiere_revision = 1
+        ORDER BY fecha_proceso DESC
+        """
+    ).fetchall()
+
+    conexion.close()
+
+    return filas

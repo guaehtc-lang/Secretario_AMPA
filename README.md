@@ -1,16 +1,31 @@
-# Secretario AMPA V0.3
+# Secretario AMPA V3.5
 
-Versión simplificada y controlada por Python.
-El LLM ya no elige herramientas ni controla el bucle.
+Versión simplificada del agente Secretario AMPA.
 
-## Estructura principal
+Python controla el flujo completo. El LLM solo:
+
+- clasifica correos;
+- redacta borradores;
+- extrae datos de reuniones;
+- resume urgencias.
+
+## Estructura
 
 ```text
-main.py
-  ├── src/prompt.py      → carga varios prompts
-  ├── src/tools.py       → catálogo de tools internas
-  ├── src/funciones.py   → funciones Python registradas
-  └── src/agente.py      → flujo controlado por Python
+Secretario_AMPA/
+├── main.py
+├── autorizar_google.py
+├── servicio.py
+├── reset_pruebas.py
+├── requirements.txt
+├── .env
+├── .env.example
+├── README.md
+├── prompts/
+├── src/
+├── notebooks/
+├── docs/
+└── data/
 ```
 
 ## Clasificaciones
@@ -25,66 +40,82 @@ main.py
 
 | Clasificación | Estado final |
 |---|---|
-| Informativo | No leído |
-| Necesita respuesta | Leído si se crea el borrador |
-| Reunión | Leído si se crea el borrador o se registra confirmación/rechazo |
-| Urgencia | Leído si se registra la alerta de WhatsApp |
-| No clasificado | No leído |
+| `informativo` | No leído |
+| `necesita_respuesta` | Leído si se crea el borrador |
+| `reunion` | Leído si se procesa correctamente |
+| `urgente_seguridad` | Leído si se registra la alerta |
+| `no_clasificado` | No leído |
 
-SQLite impide reprocesar los mensajes informativos o no clasificados que permanecen no leídos.
+SQLite evita reprocesar correos informativos o no clasificados que
+permanecen sin leer.
 
-## Primera ejecución
+## RAG
 
-1. Completa las claves en `.env`:
+El RAG ya debe existir en:
+
+```text
+data/rag/correos_historicos.jsonl
+```
+
+El proyecto no incluye un programa para construirlo o actualizarlo.
+
+`src/rag.py` únicamente:
+
+- carga el archivo;
+- busca correos similares con TF-IDF;
+- devuelve el contexto al agente.
+
+## Instalación
+
+```bash
+pip install -r requirements.txt
+```
+
+Completa en `.env`:
 
 ```text
 LLM_API_KEY=
 COMPOSIO_API_KEY=
 ```
 
-2. Instala dependencias:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Autoriza Google:
+Autoriza Google:
 
 ```bash
 python autorizar_google.py
 ```
 
-4. Crea el RAG separado:
-
-```bash
-python actualizar_rag.py
-```
-
-5. Ejecuta el agente:
+Ejecuta el agente:
 
 ```bash
 python main.py
 ```
 
-## RAG separado
+## Servicio horario
 
-`actualizar_rag.py` construye el histórico usando correos enviados.
-El agente solo ejecuta `consultar_rag()` cuando necesita redactar una respuesta.
+```bash
+python servicio.py
+```
 
-## Calendar
+## Pruebas
 
-V0.3 consulta disponibilidad y crea un borrador con propuestas.
-No crea eventos ni envía invitaciones automáticas.
+El notebook único es:
 
-## WhatsApp
+```text
+notebooks/pruebas_secretario_ampa.ipynb
+```
 
-V0.3 utiliza `WHATSAPP_MODE=simulado`.
-La alerta se muestra en consola y se guarda localmente, pero no se envía a teléfonos reales.
+Durante las pruebas puede utilizarse:
 
-## Seguridad
+```bash
+python reset_pruebas.py
+```
+
+`reset_pruebas.py` debe eliminarse al cerrar la fase de pruebas.
+
+## Restricciones
 
 - No existe función para enviar correos.
-- Los borradores requieren revisión humana.
-- Calendar no crea eventos.
-- El LLM no recibe herramientas.
-- Python controla todas las acciones externas.
+- Solo se crean borradores.
+- Calendar no crea eventos en V3.5.
+- WhatsApp funciona en modo simulado.
+- El agente no modifica ni actualiza el RAG.

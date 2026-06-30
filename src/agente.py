@@ -1,13 +1,18 @@
-"""Flujo principal controlado completamente por Python."""
+"""Flujo principal controlado por Python."""
 
 from src.parametros import SHOW_STEPS
 
 
-def mostrar(paso, texto):
-    """Muestra el avance cuando está activado."""
+def mostrar(
+    bloque,
+    mensaje,
+):
+    """Muestra los pasos del agente."""
 
     if SHOW_STEPS:
-        print(f"[{paso}] {texto}")
+        print(
+            f"[{bloque}] {mensaje}"
+        )
 
 
 def registrar(
@@ -22,18 +27,104 @@ def registrar(
     error="",
     resultado=None,
 ):
-    """Atajo para guardar el resultado del correo."""
+    """Registra un correo en SQLite."""
 
-    return funciones["registrar_correo"](
-        message_id=correo["message_id"],
+    return funciones[
+        "registrar_correo"
+    ](
+        message_id=correo[
+            "message_id"
+        ],
         clasificacion=clasificacion,
         resumen=resumen,
         accion=accion,
         estado_gmail=estado_gmail,
         draft_id=draft_id,
-        requiere_revision=requiere_revision,
+        requiere_revision=(
+            requiere_revision
+        ),
         error=error,
         resultado=resultado,
+    )
+
+
+def procesar_pendiente_lectura(
+    correo,
+    funciones,
+):
+    """Reintenta únicamente marcar como leído."""
+
+    registro = correo.get(
+        "_registro_previo"
+    )
+
+    mostrar(
+        "GMAIL",
+        "Reintentando marcar como leído",
+    )
+
+    leido = funciones[
+        "marcar_como_leido"
+    ](
+        correo[
+            "message_id"
+        ]
+    )
+
+    if leido.get(
+        "ok"
+    ):
+        accion = (
+            registro.get(
+                "accion",
+                "",
+            ).replace(
+                "_pendiente_leido",
+                "",
+            )
+        )
+        estado_gmail = "leido"
+        error = ""
+
+    else:
+        accion = registro.get(
+            "accion",
+            "pendiente_marcar_leido",
+        )
+        estado_gmail = (
+            "pendiente_marcar_leido"
+        )
+        error = str(
+            leido
+        )
+
+    return registrar(
+        funciones=funciones,
+        correo=correo,
+        clasificacion=registro.get(
+            "clasificacion",
+            "no_clasificado",
+        ),
+        resumen=registro.get(
+            "resumen",
+            "",
+        ),
+        accion=accion,
+        estado_gmail=estado_gmail,
+        draft_id=registro.get(
+            "draft_id",
+            "",
+        ),
+        requiere_revision=registro.get(
+            "requiere_revision",
+            False,
+        ),
+        error=error,
+        resultado={
+            "reintento_marcar_leido": (
+                leido
+            ),
+        },
     )
 
 
@@ -42,17 +133,23 @@ def procesar_informativo(
     clasificacion,
     funciones,
 ):
-    """Registra un informativo y lo conserva no leído."""
+    """Registra un informativo y lo mantiene no leído."""
 
-    mostrar("ACCIÓN", "Informativo: se mantiene no leído")
+    mostrar(
+        "ACCIÓN",
+        "Informativo: se mantiene no leído",
+    )
 
     return registrar(
         funciones=funciones,
         correo=correo,
         clasificacion="informativo",
-        resumen=clasificacion["resumen"],
+        resumen=clasificacion[
+            "resumen"
+        ],
         accion="registrado_sin_accion",
         estado_gmail="no_leido",
+        requiere_revision=False,
     )
 
 
@@ -61,18 +158,20 @@ def procesar_no_clasificado(
     clasificacion,
     funciones,
 ):
-    """Deja el correo pendiente de revisión humana."""
+    """Deja el correo para revisión humana."""
 
     mostrar(
         "ACCIÓN",
-        "No clasificado: revisión humana y no leído",
+        "No clasificado: revisión humana",
     )
 
     return registrar(
         funciones=funciones,
         correo=correo,
         clasificacion="no_clasificado",
-        resumen=clasificacion["resumen"],
+        resumen=clasificacion[
+            "resumen"
+        ],
         accion="pendiente_revision",
         estado_gmail="no_leido",
         requiere_revision=True,
@@ -85,41 +184,82 @@ def procesar_respuesta(
     funciones,
     prompts,
 ):
-    """Consulta el RAG, crea borrador y marca leído."""
+    """Consulta el RAG y crea un borrador."""
 
-    consulta = " ".join([
-        correo.get("asunto", ""),
-        correo.get("cuerpo", ""),
-    ])
+    mostrar(
+        "RAG",
+        "Consultando antecedentes",
+    )
 
-    mostrar("RAG", "Consultando antecedentes")
-    contexto = funciones["consultar_rag"](consulta)
+    consulta = (
+        correo.get(
+            "asunto",
+            "",
+        )
+        + "\n"
+        + correo.get(
+            "cuerpo",
+            "",
+        )
+    )
 
-    mostrar("LLM", "Redactando borrador")
-    borrador = funciones["redactar_borrador"](
+    contexto = funciones[
+        "consultar_antecedentes_gmail"
+    ](
+        consulta
+    )
+
+    mostrar(
+        "LLM",
+        "Redactando borrador",
+    )
+
+    borrador = funciones[
+        "redactar_borrador"
+    ](
         correo=correo,
         prompts=prompts,
         tipo="respuesta",
         contexto_rag=contexto,
     )
 
-    mostrar("GMAIL", "Creando borrador")
-    creado = funciones["crear_borrador"](
-        message_id=correo["message_id"],
-        asunto=borrador["asunto"],
-        cuerpo=borrador["cuerpo"],
+    mostrar(
+        "GMAIL",
+        "Creando borrador",
     )
 
-    if not creado.get("ok"):
+    creado = funciones[
+        "crear_borrador"
+    ](
+        message_id=correo[
+            "message_id"
+        ],
+        asunto=borrador[
+            "asunto"
+        ],
+        cuerpo=borrador[
+            "cuerpo"
+        ],
+    )
+
+    if not creado.get(
+        "ok"
+    ):
         return registrar(
             funciones=funciones,
             correo=correo,
-            clasificacion="necesita_respuesta",
-            resumen=clasificacion["resumen"],
-            accion="error_creando_borrador",
+            clasificacion=(
+                "necesita_respuesta"
+            ),
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion="error_borrador",
             estado_gmail="no_leido",
             requiere_revision=True,
-            error=str(creado),
+            error=str(
+                creado
+            ),
             resultado={
                 "rag": contexto,
                 "borrador": borrador,
@@ -127,27 +267,54 @@ def procesar_respuesta(
             },
         )
 
-    mostrar("GMAIL", "Marcando correo como leído")
-    leido = funciones["marcar_como_leido"](
-        correo["message_id"]
+    mostrar(
+        "GMAIL",
+        "Marcando correo como leído",
     )
 
-    estado_gmail = (
-        "leido"
-        if leido.get("ok")
-        else "no_leido"
+    leido = funciones[
+        "marcar_como_leido"
+    ](
+        correo[
+            "message_id"
+        ]
     )
+
+    if leido.get(
+        "ok"
+    ):
+        accion = "borrador_creado"
+        estado_gmail = "leido"
+        error = ""
+
+    else:
+        accion = (
+            "borrador_creado_pendiente_leido"
+        )
+        estado_gmail = (
+            "pendiente_marcar_leido"
+        )
+        error = str(
+            leido
+        )
 
     return registrar(
         funciones=funciones,
         correo=correo,
-        clasificacion="necesita_respuesta",
-        resumen=clasificacion["resumen"],
-        accion="borrador_creado",
+        clasificacion=(
+            "necesita_respuesta"
+        ),
+        resumen=clasificacion[
+            "resumen"
+        ],
+        accion=accion,
         estado_gmail=estado_gmail,
-        draft_id=creado.get("draft_id", ""),
+        draft_id=creado.get(
+            "draft_id",
+            "",
+        ),
         requiere_revision=True,
-        error=("" if leido.get("ok") else str(leido)),
+        error=error,
         resultado={
             "rag": contexto,
             "borrador": borrador,
@@ -163,111 +330,280 @@ def procesar_reunion(
     funciones,
     prompts,
 ):
-    """Procesa reuniones sin crear eventos automáticos."""
+    """Consulta Calendar y crea un borrador."""
 
-    mostrar("LLM", "Extrayendo datos de la reunión")
-    reunion = funciones["extraer_reunion"](
+    mostrar(
+        "LLM",
+        "Extrayendo datos de la reunión",
+    )
+
+    reunion = funciones[
+        "extraer_reunion"
+    ](
         correo,
         prompts,
     )
 
-    if reunion["tipo"] in ["confirmacion", "rechazo"]:
+    if reunion[
+        "tipo"
+    ] in [
+        "confirmacion",
+        "rechazo",
+    ]:
         mostrar(
             "REUNIÓN",
-            f"{reunion['tipo']} registrada sin crear evento",
+            (
+                reunion[
+                    "tipo"
+                ]
+                + " registrada "
+                "sin crear evento"
+            ),
         )
 
-        leido = funciones["marcar_como_leido"](
-            correo["message_id"]
+        mostrar(
+            "GMAIL",
+            "Marcando correo como leído",
         )
+
+        leido = funciones[
+            "marcar_como_leido"
+        ](
+            correo[
+                "message_id"
+            ]
+        )
+
+        if leido.get(
+            "ok"
+        ):
+            accion = (
+                "reunion_"
+                + reunion[
+                    "tipo"
+                ]
+            )
+            estado_gmail = "leido"
+            error = ""
+
+        else:
+            accion = (
+                "reunion_"
+                + reunion[
+                    "tipo"
+                ]
+                + "_pendiente_leido"
+            )
+            estado_gmail = (
+                "pendiente_marcar_leido"
+            )
+            error = str(
+                leido
+            )
 
         return registrar(
             funciones=funciones,
             correo=correo,
             clasificacion="reunion",
-            resumen=clasificacion["resumen"],
-            accion=f"reunion_{reunion['tipo']}",
-            estado_gmail=(
-                "leido"
-                if leido.get("ok")
-                else "no_leido"
-            ),
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion=accion,
+            estado_gmail=estado_gmail,
             requiere_revision=False,
-            error=(
-                ""
-                if leido.get("ok")
-                else str(leido)
-            ),
+            error=error,
             resultado={
                 "reunion": reunion,
                 "marcar_leido": leido,
             },
         )
 
-    mostrar("CALENDAR", "Consultando disponibilidad")
+    if (
+        reunion[
+            "tipo"
+        ] == "no_claro"
+        or not reunion[
+            "opciones"
+        ]
+    ):
+        mostrar(
+            "REUNIÓN",
+            "Faltan datos para consultar Calendar",
+        )
+
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion="reunion",
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion=(
+                "reunion_pendiente_revision"
+            ),
+            estado_gmail="no_leido",
+            requiere_revision=True,
+            resultado={
+                "reunion": reunion,
+            },
+        )
+
+    mostrar(
+        "CALENDAR",
+        "Consultando disponibilidad",
+    )
+
     disponibilidad = funciones[
         "consultar_disponibilidad"
     ](
-        opciones=reunion["opciones"],
-        duracion_minutos=(
-            reunion["duracion_minutos"]
-        ),
+        opciones=reunion[
+            "opciones"
+        ],
+        duracion_minutos=reunion[
+            "duracion_minutos"
+        ],
     )
 
-    mostrar("LLM", "Redactando propuesta de reunión")
-    borrador = funciones["redactar_borrador"](
+    if not disponibilidad.get(
+        "ok",
+        False,
+    ):
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion="reunion",
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion="error_calendar",
+            estado_gmail="no_leido",
+            requiere_revision=True,
+            error=str(
+                disponibilidad
+            ),
+            resultado={
+                "reunion": reunion,
+                "disponibilidad": (
+                    disponibilidad
+                ),
+            },
+        )
+
+    mostrar(
+        "LLM",
+        "Redactando propuesta de reunión",
+    )
+
+    borrador = funciones[
+        "redactar_borrador"
+    ](
         correo=correo,
         prompts=prompts,
         tipo="reunion",
         disponibilidad=disponibilidad,
     )
 
-    mostrar("GMAIL", "Creando borrador de reunión")
-    creado = funciones["crear_borrador"](
-        message_id=correo["message_id"],
-        asunto=borrador["asunto"],
-        cuerpo=borrador["cuerpo"],
+    mostrar(
+        "GMAIL",
+        "Creando borrador de reunión",
     )
 
-    if not creado.get("ok"):
+    creado = funciones[
+        "crear_borrador"
+    ](
+        message_id=correo[
+            "message_id"
+        ],
+        asunto=borrador[
+            "asunto"
+        ],
+        cuerpo=borrador[
+            "cuerpo"
+        ],
+    )
+
+    if not creado.get(
+        "ok"
+    ):
         return registrar(
             funciones=funciones,
             correo=correo,
             clasificacion="reunion",
-            resumen=clasificacion["resumen"],
-            accion="error_borrador_reunion",
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion=(
+                "error_borrador_reunion"
+            ),
             estado_gmail="no_leido",
             requiere_revision=True,
-            error=str(creado),
+            error=str(
+                creado
+            ),
             resultado={
                 "reunion": reunion,
-                "disponibilidad": disponibilidad,
+                "disponibilidad": (
+                    disponibilidad
+                ),
                 "borrador": borrador,
                 "gmail": creado,
             },
         )
 
-    leido = funciones["marcar_como_leido"](
-        correo["message_id"]
+    mostrar(
+        "GMAIL",
+        "Marcando correo como leído",
     )
+
+    leido = funciones[
+        "marcar_como_leido"
+    ](
+        correo[
+            "message_id"
+        ]
+    )
+
+    if leido.get(
+        "ok"
+    ):
+        accion = (
+            "borrador_reunion_creado"
+        )
+        estado_gmail = "leido"
+        error = ""
+
+    else:
+        accion = (
+            "borrador_reunion_creado_"
+            "pendiente_leido"
+        )
+        estado_gmail = (
+            "pendiente_marcar_leido"
+        )
+        error = str(
+            leido
+        )
 
     return registrar(
         funciones=funciones,
         correo=correo,
         clasificacion="reunion",
-        resumen=clasificacion["resumen"],
-        accion="borrador_reunion_creado",
-        estado_gmail=(
-            "leido"
-            if leido.get("ok")
-            else "no_leido"
+        resumen=clasificacion[
+            "resumen"
+        ],
+        accion=accion,
+        estado_gmail=estado_gmail,
+        draft_id=creado.get(
+            "draft_id",
+            "",
         ),
-        draft_id=creado.get("draft_id", ""),
         requiere_revision=True,
-        error=("" if leido.get("ok") else str(leido)),
+        error=error,
         resultado={
             "reunion": reunion,
-            "disponibilidad": disponibilidad,
+            "disponibilidad": (
+                disponibilidad
+            ),
             "borrador": borrador,
             "gmail": creado,
             "marcar_leido": leido,
@@ -281,57 +617,115 @@ def procesar_urgencia(
     funciones,
     prompts,
 ):
-    """Genera la alerta de WhatsApp y marca leído si funciona."""
+    """Genera una alerta y marca leído si funciona."""
 
-    mostrar("LLM", "Generando resumen de WhatsApp")
-    alerta = funciones["crear_resumen_whatsapp"](
+    mostrar(
+        "LLM",
+        "Generando resumen de WhatsApp",
+    )
+
+    alerta = funciones[
+        "crear_resumen_whatsapp"
+    ](
         correo,
         prompts,
     )
 
-    mostrar("WHATSAPP", "Enviando alerta")
-    enviado = funciones["enviar_whatsapp"](
-        message_id=correo["message_id"],
-        resumen=alerta["resumen"],
-        tipo_riesgo=alerta["tipo_riesgo"],
+    mostrar(
+        "WHATSAPP",
+        "Registrando alerta simulada",
     )
 
-    if enviado.get("ok"):
-        leido = funciones["marcar_como_leido"](
-            correo["message_id"]
+    enviado = funciones[
+        "enviar_whatsapp"
+    ](
+        message_id=correo[
+            "message_id"
+        ],
+        resumen=alerta[
+            "resumen"
+        ],
+        tipo_riesgo=alerta[
+            "tipo_riesgo"
+        ],
+    )
+
+    if enviado.get(
+        "ok"
+    ):
+        mostrar(
+            "GMAIL",
+            "Marcando correo como leído",
         )
+
+        leido = funciones[
+            "marcar_como_leido"
+        ](
+            correo[
+                "message_id"
+            ]
+        )
+
     else:
         leido = {
             "ok": False,
-            "estado": "no_marcado_por_fallo_whatsapp",
+            "estado": (
+                "no_marcado_por_fallo_whatsapp"
+            ),
         }
+
+    if (
+        enviado.get(
+            "ok"
+        )
+        and leido.get(
+            "ok"
+        )
+    ):
+        accion = (
+            "alerta_whatsapp_registrada"
+        )
+        estado_gmail = "leido"
+        error = ""
+
+    elif enviado.get(
+        "ok"
+    ):
+        accion = (
+            "alerta_whatsapp_registrada_"
+            "pendiente_leido"
+        )
+        estado_gmail = (
+            "pendiente_marcar_leido"
+        )
+        error = str(
+            leido
+        )
+
+    else:
+        accion = "error_whatsapp"
+        estado_gmail = "no_leido"
+        error = str(
+            enviado
+        )
 
     return registrar(
         funciones=funciones,
         correo=correo,
-        clasificacion="urgente_seguridad",
-        resumen=clasificacion["resumen"],
-        accion=(
-            "alerta_whatsapp_enviada"
-            if enviado.get("ok")
-            else "error_whatsapp"
+        clasificacion=(
+            "urgente_seguridad"
         ),
-        estado_gmail=(
-            "leido"
-            if leido.get("ok")
-            else "no_leido"
-        ),
+        resumen=clasificacion[
+            "resumen"
+        ],
+        accion=accion,
+        estado_gmail=estado_gmail,
         requiere_revision=(
-            not enviado.get("ok")
+            not enviado.get(
+                "ok"
+            )
         ),
-        error=(
-            ""
-            if enviado.get("ok") and leido.get("ok")
-            else str({
-                "whatsapp": enviado,
-                "marcar_leido": leido,
-            })
-        ),
+        error=error,
         resultado={
             "alerta": alerta,
             "whatsapp": enviado,
@@ -346,62 +740,127 @@ def procesar_correo(
     funciones,
     prompts,
 ):
-    """Clasifica un correo y aplica un único flujo."""
+    """Clasifica y aplica un único flujo."""
+
+    registro_previo = correo.get(
+        "_registro_previo"
+    )
+
+    if (
+        registro_previo
+        and registro_previo.get(
+            "estado_gmail"
+        )
+        == "pendiente_marcar_leido"
+    ):
+        return procesar_pendiente_lectura(
+            correo,
+            funciones,
+        )
 
     mostrar(
         "CORREO",
-        correo.get("asunto", "(sin asunto)"),
+        correo.get(
+            "asunto",
+            "(sin asunto)",
+        ),
     )
 
-    mostrar("LLM", "Clasificando correo")
-    clasificacion = funciones["clasificar_correo"](
+    mostrar(
+        "LLM",
+        "Clasificando correo",
+    )
+
+    clasificacion = funciones[
+        "clasificar_correo"
+    ](
         correo,
         prompts,
     )
 
-    categoria = clasificacion["clasificacion"]
-    mostrar("CLASIFICACIÓN", categoria)
+    categoria = clasificacion[
+        "clasificacion"
+    ]
 
-    if categoria == "informativo":
-        return procesar_informativo(
-            correo,
-            clasificacion,
-            funciones,
-        )
-
-    if categoria == "necesita_respuesta":
-        return procesar_respuesta(
-            correo,
-            clasificacion,
-            funciones,
-            prompts,
-        )
-
-    if categoria == "reunion":
-        return procesar_reunion(
-            correo,
-            clasificacion,
-            funciones,
-            prompts,
-        )
-
-    if categoria == "urgente_seguridad":
-        return procesar_urgencia(
-            correo,
-            clasificacion,
-            funciones,
-            prompts,
-        )
-
-    return procesar_no_clasificado(
-        correo,
-        clasificacion,
-        funciones,
+    mostrar(
+        "CLASIFICACIÓN",
+        categoria,
     )
 
+    try:
+        if categoria == "informativo":
+            return procesar_informativo(
+                correo,
+                clasificacion,
+                funciones,
+            )
 
-def ejecutar_agente(tools, funciones, prompts):
-    """Procesa todos los correos no leídos pendientes."""
+        if (
+            categoria
+            == "necesita_respuesta"
+        ):
+            return procesar_respuesta(
+                correo,
+                clasificacion,
+                funciones,
+                prompts,
+            )
+
+        if categoria == "reunion":
+            return procesar_reunion(
+                correo,
+                clasificacion,
+                funciones,
+                prompts,
+            )
+
+        if (
+            categoria
+            == "urgente_seguridad"
+        ):
+            return procesar_urgencia(
+                correo,
+                clasificacion,
+                funciones,
+                prompts,
+            )
+
+        return procesar_no_clasificado(
+            correo,
+            clasificacion,
+            funciones,
+        )
+
+    except Exception as error:
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion=categoria,
+            resumen=clasificacion.get(
+                "resumen",
+                (
+                    "Error durante "
+                    "el procesamiento"
+                ),
+            ),
+            accion=(
+                "error_"
+                + categoria
+            ),
+            estado_gmail="no_leido",
+            requiere_revision=True,
+            error=str(
+                error
+            ),
+        )
+
+
+def ejecutar_agente(
+    tools,
+    funciones,
+    prompts,
+):
+    """Procesa todos los correos pendientes."""
 
     faltan = [
         nombre
@@ -416,7 +875,11 @@ def ejecutar_agente(tools, funciones, prompts):
             "funciones": faltan,
         }
 
-    mostrar("GMAIL", "Buscando correos no leídos")
+    mostrar(
+        "GMAIL",
+        "Buscando correos no leídos",
+    )
+
     correos = funciones[
         "obtener_correos_no_leidos"
     ]()
@@ -431,9 +894,13 @@ def ejecutar_agente(tools, funciones, prompts):
 
     resultados = []
 
-    for numero, correo in enumerate(correos, start=1):
+    for numero, correo in enumerate(
+        correos,
+        start=1,
+    ):
         print(
-            f"\n===== CORREO {numero}/{len(correos)} ====="
+            f"\n===== CORREO "
+            f"{numero}/{len(correos)} ====="
         )
 
         try:
@@ -443,23 +910,37 @@ def ejecutar_agente(tools, funciones, prompts):
                 funciones=funciones,
                 prompts=prompts,
             )
+
         except Exception as error:
             resultado = registrar(
                 funciones=funciones,
                 correo=correo,
-                clasificacion="no_clasificado",
-                resumen="Error durante el procesamiento",
-                accion="error_procesamiento",
+                clasificacion=(
+                    "no_clasificado"
+                ),
+                resumen=(
+                    "Error durante "
+                    "el procesamiento"
+                ),
+                accion=(
+                    "error_procesamiento"
+                ),
                 estado_gmail="no_leido",
                 requiere_revision=True,
-                error=str(error),
+                error=str(
+                    error
+                ),
             )
 
-        resultados.append(resultado)
+        resultados.append(
+            resultado
+        )
 
     return {
         "ok": True,
         "estado": "ciclo_completado",
-        "procesados": len(resultados),
+        "procesados": len(
+            resultados
+        ),
         "resultados": resultados,
     }
