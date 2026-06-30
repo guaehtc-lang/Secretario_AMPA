@@ -177,8 +177,3 @@ if ALLOW_EMAIL_SEND:
         "ALLOW_EMAIL_SEND debe permanecer en false."
     )
 
-if ALLOW_CREATE_EVENTS:
-    raise ValueError(
-        "V3.5 no crea eventos. "
-        "ALLOW_CREATE_EVENTS debe permanecer en false."
-    )

@@ -4,6 +4,7 @@ import json
 
 from src.calendar import (
     consultar_disponibilidad,
+    crear_evento_reunion,
 )
 from src.gmail import (
     crear_borrador,
@@ -481,6 +482,9 @@ funciones = {
     ),
     "consultar_disponibilidad": (
         consultar_disponibilidad
+    ),
+    "crear_evento_reunion": (
+        crear_evento_reunion
     ),
     "crear_resumen_whatsapp": (
         crear_resumen_whatsapp

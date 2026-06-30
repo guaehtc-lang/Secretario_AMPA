@@ -98,6 +98,17 @@ def procesar_pendiente_lectura(
             leido
         )
 
+    resultado_previo = registro.get(
+        "resultado",
+        {},
+    )
+
+    if not isinstance(
+        resultado_previo,
+        dict,
+    ):
+        resultado_previo = {}
+
     return registrar(
         funciones=funciones,
         correo=correo,
@@ -121,6 +132,7 @@ def procesar_pendiente_lectura(
         ),
         error=error,
         resultado={
+            **resultado_previo,
             "reintento_marcar_leido": (
                 leido
             ),
@@ -346,20 +358,49 @@ def procesar_reunion(
 
     if reunion[
         "tipo"
-    ] in [
-        "confirmacion",
-        "rechazo",
-    ]:
+    ] == "confirmacion":
         mostrar(
-            "REUNIÓN",
-            (
-                reunion[
-                    "tipo"
-                ]
-                + " registrada "
-                "sin crear evento"
-            ),
+            "CALENDAR",
+            "Creando evento confirmado",
         )
+
+        evento = funciones[
+            "crear_evento_reunion"
+        ](
+            correo=correo,
+            reunion=reunion,
+        )
+
+        if not evento.get(
+            "ok"
+        ):
+            mostrar(
+                "REUNIÓN",
+                "No se creó el evento; "
+                "el correo permanece no leído",
+            )
+
+            return registrar(
+                funciones=funciones,
+                correo=correo,
+                clasificacion="reunion",
+                resumen=clasificacion[
+                    "resumen"
+                ],
+                accion=(
+                    "reunion_confirmada_"
+                    "pendiente_evento"
+                ),
+                estado_gmail="no_leido",
+                requiere_revision=True,
+                error=str(
+                    evento
+                ),
+                resultado={
+                    "reunion": reunion,
+                    "evento": evento,
+                },
+            )
 
         mostrar(
             "GMAIL",
@@ -378,21 +419,79 @@ def procesar_reunion(
             "ok"
         ):
             accion = (
-                "reunion_"
-                + reunion[
-                    "tipo"
-                ]
+                "reunion_confirmada_"
+                "evento_creado"
             )
+            estado_gmail = "leido"
+            requiere_revision = False
+            error = ""
+
+        else:
+            accion = (
+                "reunion_confirmada_"
+                "evento_creado_"
+                "pendiente_leido"
+            )
+            estado_gmail = (
+                "pendiente_marcar_leido"
+            )
+            requiere_revision = True
+            error = str(
+                leido
+            )
+
+        return registrar(
+            funciones=funciones,
+            correo=correo,
+            clasificacion="reunion",
+            resumen=clasificacion[
+                "resumen"
+            ],
+            accion=accion,
+            estado_gmail=estado_gmail,
+            requiere_revision=(
+                requiere_revision
+            ),
+            error=error,
+            resultado={
+                "reunion": reunion,
+                "evento": evento,
+                "marcar_leido": leido,
+            },
+        )
+
+    if reunion[
+        "tipo"
+    ] == "rechazo":
+        mostrar(
+            "REUNIÓN",
+            "Rechazo registrado sin crear evento",
+        )
+
+        mostrar(
+            "GMAIL",
+            "Marcando correo como leído",
+        )
+
+        leido = funciones[
+            "marcar_como_leido"
+        ](
+            correo[
+                "message_id"
+            ]
+        )
+
+        if leido.get(
+            "ok"
+        ):
+            accion = "reunion_rechazo"
             estado_gmail = "leido"
             error = ""
 
         else:
             accion = (
-                "reunion_"
-                + reunion[
-                    "tipo"
-                ]
-                + "_pendiente_leido"
+                "reunion_rechazo_"
+                "pendiente_leido"
             )
             estado_gmail = (
                 "pendiente_marcar_leido"

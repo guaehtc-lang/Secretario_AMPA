@@ -1,6 +1,9 @@
 """Consulta de disponibilidad en Google Calendar."""
 
+import re
+import unicodedata
 from datetime import (
+    date,
     datetime,
     time,
     timedelta,
@@ -8,10 +11,13 @@ from datetime import (
 from zoneinfo import ZoneInfo
 
 from src.gmail import (
+    buscar_valor,
     convertir_resultado,
     obtener_sesion_google,
+    resultado_tiene_error,
 )
 from src.parametros import (
+    ALLOW_CREATE_EVENTS,
     CALENDAR_ID,
     DEFAULT_MEETING_MINUTES,
     TIMEZONE,
@@ -30,6 +36,121 @@ DIAS_SEMANA = {
     "domingo": 6,
 }
 
+MESES = {
+    "enero": 1,
+    "febrero": 2,
+    "marzo": 3,
+    "abril": 4,
+    "mayo": 5,
+    "junio": 6,
+    "julio": 7,
+    "agosto": 8,
+    "septiembre": 9,
+    "setiembre": 9,
+    "octubre": 10,
+    "noviembre": 11,
+    "diciembre": 12,
+}
+
+
+def quitar_acentos(texto):
+    """Normaliza un texto para comparar meses y días."""
+
+    texto = unicodedata.normalize(
+        "NFD",
+        texto or "",
+    )
+
+    return "".join(
+        caracter
+        for caracter in texto
+        if unicodedata.category(
+            caracter
+        ) != "Mn"
+    ).lower().strip()
+
+
+def parsear_fecha(fecha_texto):
+    """Convierte formatos habituales en una fecha."""
+
+    if isinstance(
+        fecha_texto,
+        datetime,
+    ):
+        return fecha_texto.date()
+
+    if isinstance(
+        fecha_texto,
+        date,
+    ):
+        return fecha_texto
+
+    texto = str(
+        fecha_texto
+        or ""
+    ).strip()
+
+    if not texto:
+        return None
+
+    formatos = [
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+        "%d.%m.%Y",
+    ]
+
+    for formato in formatos:
+        try:
+            return datetime.strptime(
+                texto,
+                formato,
+            ).date()
+        except ValueError:
+            continue
+
+    texto_normalizado = quitar_acentos(
+        texto
+    )
+
+    patrones = [
+        r"^(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})$",
+        r"^(\d{1,2})\s+([a-z]+)\s+(\d{4})$",
+    ]
+
+    for patron in patrones:
+        coincidencia = re.match(
+            patron,
+            texto_normalizado,
+        )
+
+        if not coincidencia:
+            continue
+
+        dia = int(
+            coincidencia.group(1)
+        )
+        mes = MESES.get(
+            coincidencia.group(2)
+        )
+        anio = int(
+            coincidencia.group(3)
+        )
+
+        if not mes:
+            return None
+
+        try:
+            return date(
+                anio,
+                mes,
+                dia,
+            )
+        except ValueError:
+            return None
+
+    return None
+
 
 def proxima_fecha(
     dia,
@@ -43,6 +164,13 @@ def proxima_fecha(
             or ""
         ).strip().lower()
     )
+
+    if numero_dia is None:
+        numero_dia = DIAS_SEMANA.get(
+            quitar_acentos(
+                dia
+            )
+        )
 
     if numero_dia is None:
         return None
@@ -61,9 +189,7 @@ def proxima_fecha(
     if diferencia == 0:
         hora, minuto = map(
             int,
-            hora_texto.split(
-                ":"
-            ),
+            hora_texto.split(":")
         )
 
         propuesta = ahora.replace(
@@ -87,7 +213,7 @@ def proxima_fecha(
 def normalizar_opciones(
     opciones,
 ):
-    """Valida las opciones extraídas por el LLM."""
+    """Valida y normaliza las opciones extraídas por el LLM."""
 
     normalizadas = []
 
@@ -126,23 +252,13 @@ def normalizar_opciones(
             or ""
         ).strip()
 
-        fecha_texto = (
+        fecha = parsear_fecha(
             opcion.get(
                 "fecha"
             )
-            or ""
-        ).strip()
+        )
 
-        if fecha_texto:
-            try:
-                fecha = datetime.strptime(
-                    fecha_texto,
-                    "%Y-%m-%d",
-                ).date()
-            except ValueError:
-                continue
-
-        else:
+        if not fecha:
             fecha = proxima_fecha(
                 dia,
                 hora,
@@ -190,9 +306,7 @@ def consultar_disponibilidad(
             int,
             opcion[
                 "hora"
-            ].split(
-                ":"
-            ),
+            ].split(":")
         )
 
         fecha = datetime.strptime(
@@ -222,12 +336,8 @@ def consultar_disponibilidad(
                     "items": [
                         CALENDAR_ID
                     ],
-                    "time_min": (
-                        inicio.isoformat()
-                    ),
-                    "time_max": (
-                        fin.isoformat()
-                    ),
+                    "time_min": inicio.isoformat(),
+                    "time_max": fin.isoformat(),
                     "timezone": TIMEZONE,
                 },
             )
@@ -255,14 +365,10 @@ def consultar_disponibilidad(
 
         resultados.append({
             **opcion,
-            "hora_hasta": (
-                fin.strftime(
-                    "%H:%M"
-                )
+            "hora_hasta": fin.strftime(
+                "%H:%M"
             ),
-            "inicio_iso": (
-                inicio.isoformat()
-            ),
+            "inicio_iso": inicio.isoformat(),
             "disponible": bool(
                 libres
             ),
@@ -270,8 +376,215 @@ def consultar_disponibilidad(
 
     return {
         "ok": True,
-        "estado": (
-            "disponibilidad_consultada"
-        ),
+        "estado": "disponibilidad_consultada",
         "opciones": resultados,
     }
+
+
+def crear_evento_reunion(
+    correo,
+    reunion,
+):
+    """Crea un evento únicamente para una reunión confirmada."""
+
+    if not ALLOW_CREATE_EVENTS:
+        return {
+            "ok": False,
+            "estado": "eventos_desactivados",
+        }
+
+    if not isinstance(
+        reunion,
+        dict,
+    ):
+        return {
+            "ok": False,
+            "estado": "reunion_no_valida",
+        }
+
+    if reunion.get(
+        "tipo"
+    ) != "confirmacion":
+        return {
+            "ok": False,
+            "estado": "reunion_no_confirmada",
+        }
+
+    opciones = normalizar_opciones(
+        reunion.get(
+            "opciones",
+            [],
+        )
+    )
+
+    if len(opciones) != 1:
+        return {
+            "ok": False,
+            "estado": (
+                "confirmacion_sin_fecha_unica"
+            ),
+            "opciones": opciones,
+        }
+
+    duracion = reunion.get(
+        "duracion_minutos",
+        DEFAULT_MEETING_MINUTES,
+    )
+
+    try:
+        duracion = int(
+            duracion
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        duracion = (
+            DEFAULT_MEETING_MINUTES
+        )
+
+    duracion = max(
+        15,
+        min(
+            duracion,
+            180,
+        ),
+    )
+
+    disponibilidad = consultar_disponibilidad(
+        opciones=opciones,
+        duracion_minutos=duracion,
+    )
+
+    opciones_comprobadas = disponibilidad.get(
+        "opciones",
+        [],
+    )
+
+    if (
+        not disponibilidad.get(
+            "ok"
+        )
+        or len(opciones_comprobadas) != 1
+        or not opciones_comprobadas[0].get(
+            "disponible"
+        )
+    ):
+        return {
+            "ok": False,
+            "estado": "horario_no_disponible",
+            "disponibilidad": disponibilidad,
+        }
+
+    opcion = opciones_comprobadas[0]
+    remitente = correo.get(
+        "remitente",
+        "",
+    ).strip()
+
+    motivo = (
+        reunion.get(
+            "motivo"
+        )
+        or correo.get(
+            "asunto"
+        )
+        or "Reunión confirmada"
+    ).strip()
+
+    titulo = (
+        "Reunión AMPA - "
+        + motivo
+    )[:180]
+
+    horas = duracion // 60
+    minutos = duracion % 60
+
+    sesion = obtener_sesion_google()
+
+    resultado = convertir_resultado(
+        sesion.execute(
+            "GOOGLECALENDAR_CREATE_EVENT",
+            arguments={
+                "calendar_id": CALENDAR_ID,
+                "summary": titulo,
+                "description": (
+                    "Reunión confirmada por correo.\n"
+                    f"Remitente: {remitente}\n"
+                    f"Asunto: {correo.get('asunto', '')}"
+                ),
+                "start_datetime": opcion[
+                    "inicio_iso"
+                ],
+                "timezone": TIMEZONE,
+                "event_duration_hour": horas,
+                "event_duration_minutes": minutos,
+                "send_updates": "none",
+                "create_meeting_room": False,
+                "eventType": "default",
+                "visibility": "default",
+                "transparency": "opaque",
+                "exclude_organizer": False,
+                "guestsCanModify": False,
+                "guestsCanInviteOthers": False,
+                "guestsCanSeeOtherGuests": True,
+            },
+        )
+    )
+
+    if resultado_tiene_error(
+        resultado
+    ):
+        return {
+            "ok": False,
+            "estado": "error_creando_evento",
+            "resultado": resultado,
+        }
+
+    event_id = buscar_valor(
+        resultado,
+        [
+            "event_id",
+            "eventId",
+            "id",
+        ],
+    )
+
+    event_url = buscar_valor(
+        resultado,
+        [
+            "htmlLink",
+            "html_link",
+            "display_url",
+        ],
+    )
+
+    if not event_id:
+        return {
+            "ok": False,
+            "estado": "evento_sin_identificador",
+            "resultado": resultado,
+        }
+
+    return {
+        "ok": True,
+        "estado": "evento_creado",
+        "event_id": event_id,
+        "event_url": event_url or "",
+        "titulo": titulo,
+        "remitente": remitente,
+        "fecha": opcion[
+            "fecha"
+        ],
+        "hora": opcion[
+            "hora"
+        ],
+        "hora_hasta": opcion[
+            "hora_hasta"
+        ],
+        "inicio_iso": opcion[
+            "inicio_iso"
+        ],
+        "duracion_minutos": duracion,
+    }
+

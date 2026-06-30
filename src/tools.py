@@ -60,6 +60,13 @@ tools = {
             "sin crear eventos."
         ),
     },
+    "crear_evento_reunion": {
+        "area": "calendar",
+        "descripcion": (
+            "Crea un evento interno únicamente "
+            "cuando la reunión está confirmada."
+        ),
+    },
     "crear_resumen_whatsapp": {
         "area": "llm",
         "descripcion": (
