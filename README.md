@@ -1,6 +1,6 @@
 # Secretario AMPA V3.9
 
-Versión local en revisión del agente **Secretario AMPA**.
+Versión final local funcional del agente **Secretario AMPA**, preparada para la presentación del bootcamp.
 
 El proyecto supervisa el correo del AMPA, clasifica los mensajes, prepara borradores, consulta Google Calendar, gestiona alertas urgentes mediante Telegram y conserva el estado del procesamiento en SQLite.
 
@@ -302,9 +302,12 @@ git rm --cached data/rag/correos_historicos.jsonl
 Después:
 
 ```bash
-git add .gitignore .env.example requirements.txt README.md
-git commit -m "Prepara raiz del proyecto para V3.9"
+git rm --ignore-unmatch gitignore
+git add .gitignore README.md
+git commit -m "Cierra V3.9 y protege datos locales"
 ```
+
+Estos comandos retiran del repositorio el archivo duplicado `gitignore` y dejan SQLite y el RAG únicamente en la copia local.
 
 ---
 
