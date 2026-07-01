@@ -4,7 +4,7 @@ Versión local en revisión del agente **Secretario AMPA**.
 
 El proyecto supervisa el correo del AMPA, clasifica los mensajes, prepara borradores, consulta Google Calendar, gestiona alertas urgentes mediante Telegram y conserva el estado del procesamiento en SQLite.
 
-La V3.9 se revisa y valida todavía en local. El despliegue permanente mediante `systemd` se realizará posteriormente en la V4.0.
+La V3.9 es la versión final local presentada en el bootcamp. El despliegue permanente se plantea como una evolución futura para la V4.0.
 
 ---
 
@@ -141,7 +141,6 @@ Secretario_AMPA/
 ├── servicio.py
 ├── autorizar_google.py
 ├── crear_rag.py
-├── reset_pruebas.py
 ├── requirements.txt
 ├── .env
 ├── .env.example
@@ -173,7 +172,7 @@ Secretario_AMPA/
 └── docs/
 ```
 
-`reset_pruebas.py`, el notebook y la documentación antigua se mantienen temporalmente mientras se completa la revisión de la V3.9. Al cerrar la versión se decidirá qué elementos deben eliminarse o actualizarse.
+La base SQLite, el RAG y `.env` se generan o mantienen únicamente en local. No deben formar parte del repositorio público.
 
 ---
 
@@ -273,7 +272,7 @@ ALLOW_EMAIL_SEND=false
 ALLOW_CREATE_EVENTS=false
 ```
 
-Recomendación durante la revisión local:
+Configuración recomendada para pruebas locales:
 
 - mantener `ALLOW_EMAIL_SEND=false` hasta probar el flujo completo;
 - mantener `ALLOW_CREATE_EVENTS=false` en instalaciones nuevas;
@@ -311,14 +310,17 @@ git commit -m "Prepara raiz del proyecto para V3.9"
 
 ## 11. Estado de la V3.9
 
-La versión permanece en revisión local. Los siguientes bloques se revisarán paso a paso antes de crear la copia final y subirla a GitHub:
+La V3.9 queda cerrada como versión local funcional para la presentación del bootcamp.
 
-- scripts de entrada;
-- módulos de `src/`;
-- prompts;
-- memoria y RAG;
-- herramientas de prueba;
-- documentación final;
-- limpieza del proyecto.
+Incluye:
 
-La V4.0 incorporará el despliegue permanente en una máquina virtual y la ejecución mediante `systemd`.
+- supervisión periódica de Gmail;
+- clasificación mediante LLM;
+- creación controlada de borradores;
+- consulta de antecedentes mediante RAG local;
+- gestión de reuniones con Google Calendar;
+- alertas y autorización humana mediante Telegram;
+- persistencia e idempotencia mediante SQLite;
+- ejecución continua local mediante `servicio.py`.
+
+La V4.0 queda planteada para un despliegue permanente en un servidor o equipo disponible 24/7. La V5.0 incorporará funciones avanzadas de planificación y mayor automatización del trabajo del AMPA.
